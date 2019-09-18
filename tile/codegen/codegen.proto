@@ -485,7 +485,9 @@ message AutotilePass {
   // Exclude some set of blocks based on tags
   repeated string exclude = 36;
   // If the tiling is interleaved
-  optional bool interleave = 37;
+  optional bool interleave = 37 [default = false];
+  // If using the machine learning-based cost model
+  optional bool ml_cost_model = 38 [default = false];
 }
 
 // A pass that attempts to transpose intermediate buffers such that any
@@ -696,3 +698,36 @@ message FixStridesPass {
 message IdxOrderPass {
   repeated string reqs = 1;
 }
+
+// Generate all possible tile plans for a block
+message GeneratePlansPass {
+  repeated string reqs = 1;
+  // The filename for storing tile plans
+  required string plan_file = 2;
+  // The maximum memory usage of the inner block
+  required uint64 max_mem_size = 3;
+  // Whether the dimension size of the tiled refinements are odd
+  required bool odd_size = 4;
+  // If the tiles are divisible
+  optional bool only_even = 5 [default = false];
+  // If the tiles are po2
+  optional bool only_po2 = 6 [default = false]; 
+  // If tiling the accumulation index
+  optional bool acc_idxs = 7 [default = true];
+}
+
+// Generate tiled blocks for the same original block according to different tile plans
+message GenerateTilesPass {
+  repeated string reqs = 1;
+  // The filename for storing tile plans
+  required string plan_file = 2;
+  // Set the following tags on the outer block post tiling
+  repeated string outer_set = 3;
+  // Set the following tags on the inner block post tiling
+  repeated string inner_set = 4;
+  // Whether interleavedly tile the block
+  required bool interleave = 5;
+  // Maximum generated blocks
+  optional uint64 max_blocks = 6 [default = 1024];
+}
+

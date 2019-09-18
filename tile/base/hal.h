@@ -40,6 +40,10 @@ class Result {
   // caller may have a better idea of when the operation is known to be complete, due to the completion of dependent
   // operations.)
   virtual void LogStatistics() const = 0;
+
+  // Dump the feature in comment and the execution time
+  // Return "" if it is not supported by the hal
+  virtual std::string DumpExecTime() const { return ""; }
 };
 
 // A synchronization event.

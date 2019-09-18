@@ -20,3 +20,12 @@ py_binary(
     name = "sphinx",
     srcs = [":sphinx.py"],
 )
+
+alias(
+    name = "xgboost_alias",
+    actual = select({
+        "@com_intel_plaidml//toolchain:macos_x86_64": "@com_intel_plaidml_conda_unix//:xgboost_lib",
+        "@com_intel_plaidml//toolchain:windows_x86_64": "@com_intel_plaidml_conda_windows//:xgboost_lib",
+        "//conditions:default": "@com_intel_plaidml_conda_unix//:xgboost_lib",
+    }),
+)

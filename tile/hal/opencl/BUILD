@@ -78,6 +78,7 @@ plaidml_cc_library(
         "//tile/lang",
         "//tile/proto:proto_cc",
         "//tile/proto:support",
+        "//tile/util",
         "@boost//:filesystem",
         "@boost//:regex",
     ],

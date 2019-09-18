@@ -183,6 +183,7 @@ void ModifyBlockIdxs(Block* block, const std::map<std::string, size_t>& new_idxs
     reshape->stmts.push_back(load);
     reshape->stmts.push_back(store);
     reshape->set_tag("eltwise");
+    reshape->set_tag("eltwise_padding");
     reshape->set_tag("kernel");
     reshape->name = "kernel_" + std::to_string(parent->stmts.size()) + "(" + src_ref_name + ")";
     // Modify the ref in the original block

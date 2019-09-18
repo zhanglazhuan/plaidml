@@ -44,3 +44,29 @@ cc_library(
         "@pybind11",
     ],
 )
+
+cc_import(
+    name = "xgboost_import",
+    shared_library = select({
+        "@com_intel_plaidml//toolchain:macos_x86_64": "env/lib/libxgboost.dylib",
+        "//conditions:default": "env/lib/libxgboost.so",
+    }),
+    hdrs = glob([
+        "env/include/xgboost/**",
+    ]),
+)
+
+cc_library(
+    name = "xgboost_lib",
+    hdrs = glob([
+       "env/include/xgboost/**",
+    ]),
+    includes = [
+       "env/include",
+       "env/include/xgboost",
+    ],
+    deps = [
+        ":xgboost_import",
+    ],
+    visibility = ["//visibility:public"],
+)

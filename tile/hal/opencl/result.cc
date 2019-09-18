@@ -132,6 +132,15 @@ void KernelResult::LogStatistics() const {
   }
 }
 
+// Dump the feature in comment and the execution time
+std::string KernelResult::DumpExecTime() const {
+  std::call_once(once_, [this]() { info_ = MakeResultInfo(event_); });
+  size_t start = ki_.comments.rfind("//") + 2;
+  size_t end = ki_.comments.rfind("\n");
+  std::string feature = ki_.comments.substr(start, end - start);
+  return feature + "\n" + std::to_string(info_->execution_duration.count()) + "\n";
+}
+
 }  // namespace opencl
 }  // namespace hal
 }  // namespace tile

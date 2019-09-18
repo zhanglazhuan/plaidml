@@ -38,6 +38,9 @@ class ProgramCache final {
   std::shared_ptr<lang::Program> GetParsedProgram(const context::Context& ctx, const std::string& fallback_id,
                                                   const tile::proto::Program& program);
 
+  // Sometimes we need to compile the program every time. So the cache should be disabled.
+  void Disable() { disabled = true; }
+
  private:
   struct Key {
     std::string subdevice;
@@ -80,6 +83,7 @@ class ProgramCache final {
 
   std::mutex mu_;
   int next_id_ = 1;
+  bool disabled = false;
   LruCache<Key, std::shared_ptr<Entry>, KeyComp> cache_;
 };
 

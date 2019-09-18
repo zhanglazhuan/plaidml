@@ -2,16 +2,41 @@
 
 #include "tile/platform/local_machine/run_request.h"
 
+#include <chrono>
 #include <unordered_set>
 #include <utility>
 
+#include "base/util/env.h"
 #include "base/util/error.h"
 #include "tile/platform/local_machine/shim.h"
+#include "base/util/file.h"
+#include "tile/util/train_status.h"
 
 namespace vertexai {
 namespace tile {
 namespace local_machine {
 namespace {
+
+// Dump the kernel execution time to cm_train_dir/MEASURE_FILE
+void DumpExecTime(const std::string& cm_train_dir,
+                  const std::vector<std::shared_ptr<hal::Result>>& results) {
+  if (cm_train_dir.size() > 0) {
+    std::ostringstream test_result;
+    for (auto& result : results) {
+      // Dump the execution times to test_output
+      std::string feature_time = result->DumpExecTime();
+      if (feature_time[0] != '\n') {
+        // The comments (the first line)  can't be empty
+        test_result << feature_time;
+      }
+    }
+    std::string test_output = cm_train_dir + "/" + MEASURE_FILE;
+    WriteFile(test_output, test_result.str(), false, true);
+    // If we ran the program successfully, set the last tested tile as the last generated tile
+    util::TrainStatus ts(cm_train_dir);
+    ts.SetLastTestedTile(ts.LastBuiltTile());
+  }
+}
 
 // Runs the schedule for a particular program.
 boost::future<std::vector<std::shared_ptr<hal::Result>>> RunSchedule(  //
@@ -19,6 +44,9 @@ boost::future<std::vector<std::shared_ptr<hal::Result>>> RunSchedule(  //
   std::vector<std::shared_ptr<hal::Event>> deps;
   deps.resize(req->program()->schedule().steps.size());
   std::unordered_set<std::shared_ptr<hal::Event>> dep_set;
+
+  auto cm_train_dir = env::Get("CM_TRAIN_DIR");
+  bool is_cm_train = cm_train_dir.size() > 0;
 
   for (const auto& step : req->program()->schedule().steps) {
     IVLOG(2, "Queueing s" << step.idx << ": " << step);
@@ -49,19 +77,21 @@ boost::future<std::vector<std::shared_ptr<hal::Result>>> RunSchedule(  //
     }
     std::shared_ptr<hal::Event> event;
     switch (step.tag) {
-      case schedule::Step::Tag::kRun:
+      case schedule::Step::Tag::kRun: {
         // NOTE: VLOG_IS_ON(1) is needed here because LogResults depends on profiling
         // being enabled in order to print durations.
         event = req->program()->executable()->Run(ctx, step.kidx, current_params, current_deps,
-                                                  ctx.is_logging_events() || VLOG_IS_ON(1));
+                                                  ctx.is_logging_events() || VLOG_IS_ON(1) || is_cm_train);
         break;
-      case schedule::Step::Tag::kCopy:
+      }
+      case schedule::Step::Tag::kCopy: {
         if (current_params.size() != 2) {
           throw error::Internal{"Invalid parameter count for copy step s" + std::to_string(step.idx)};
         }
         event = req->program()->devinfo()->dev->executor()->Copy(ctx, current_params[1], 0, current_params[0], 0,
                                                                  step.byte_count, current_deps);
         break;
+      }
       default:
         throw error::Internal{"Invalid schedule step s" + std::to_string(step.idx)};
     }
@@ -87,20 +117,23 @@ boost::future<std::vector<std::shared_ptr<hal::Result>>> RunSchedule(  //
     }
     results = req->program()->devinfo()->dev->executor()->WaitFor(std::move(terminal_deps));
   }
-  if (ctx.is_logging_events() || VLOG_IS_ON(1)) {
+
+  if (ctx.is_logging_events() || VLOG_IS_ON(1) || is_cm_train) {
     // We want to return results for *all* of the steps.
     std::vector<boost::shared_future<std::shared_ptr<hal::Result>>> dep_futures;
     for (const auto& dep : deps) {
       dep_futures.emplace_back(dep->GetFuture());
     }
     results = results.then(
-        [dep_futures = std::move(dep_futures)](boost::future<std::vector<std::shared_ptr<hal::Result>>> r) {
+        [dep_futures = std::move(dep_futures), cm_train_dir = std::move(cm_train_dir)]
+        (boost::future<std::vector<std::shared_ptr<hal::Result>>> r) {
           r.get();
           // N.B. All of the step futures should be ready.
           std::vector<std::shared_ptr<hal::Result>> results;
           for (auto& dep : dep_futures) {
             results.push_back(dep.get());
           }
+          DumpExecTime(cm_train_dir, results);
           return results;
         });
   }

@@ -259,6 +259,7 @@ class Event final : public hal::Event {
  public:
   Event(const context::Context& ctx,  //
         id<MTLCommandBuffer> cmdbuf,  //
+        const lang::KernelInfo* ki,   //
         const char* verb);
 
   Event(const context::Context& ctx,  //
@@ -276,15 +277,20 @@ class Result final : public hal::Result {
  public:
   Result(const context::Context& ctx,                           //
          const char* verb,                                      //
+         const lang::KernelInfo* ki,                            //
          std::chrono::high_resolution_clock::time_point start,  //
          std::chrono::high_resolution_clock::time_point end);
 
   std::chrono::high_resolution_clock::duration GetDuration() const final;
   void LogStatistics() const final;
 
+  // Dump the feature in comment and the execution time
+  std::string DumpExecTime() const;
+
  private:
   context::Context ctx_;
   const char* verb_;
+  const lang::KernelInfo* ki_;
   std::chrono::high_resolution_clock::time_point start_;
   std::chrono::high_resolution_clock::time_point end_;
 };

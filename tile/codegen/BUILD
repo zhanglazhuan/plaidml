@@ -22,6 +22,7 @@ plaidml_cc_library(
         "//base/util",
         "//tile/bilp",
         "//tile/stripe",
+        "//tile/util",
         "//pmlc/dialect/stripe:transcode",
         "//pmlc/dialect/stripe:passes",
         "//tile/targets/cpu",

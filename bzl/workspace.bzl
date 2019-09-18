@@ -185,6 +185,11 @@ def plaidml_workspace():
         patch_args = ["-p1"],
     )
 
+    native.bind(
+        name = "xgboost",
+        actual = "//bzl:xgboost_alias",
+    )
+
 def configure_protobuf():
     http_archive(
         name = "com_google_protobuf",

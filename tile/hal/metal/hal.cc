@@ -163,7 +163,7 @@ std::shared_ptr<hal::Event> Buffer::Unmap(const context::Context& ctx) {
     auto cmdbuf = [device_->queue() commandBuffer];
     auto encoder = [cmdbuf blitCommandEncoder];
     [encoder endEncoding];
-    auto event = std::make_shared<Event>(ctx, cmdbuf, "tile::hal::opencl::Buffer::Unmap");
+    auto event = std::make_shared<Event>(ctx, cmdbuf, nullptr, "tile::hal::opencl::Buffer::Unmap");
     [cmdbuf commit];
     return event;
   }
@@ -454,7 +454,7 @@ std::shared_ptr<hal::Event> ComputeKernel::Run(const context::Context& ctx,
       *rinfo.mutable_kernel_id() = kernel_id_;
       activity.AddMetadata(rinfo);
     }
-    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, "tile::hal::opencl::Executing");
+    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, &ki_, "tile::hal::opencl::Executing");
     [cmdbuf commit];
     return event;
   }
@@ -489,7 +489,7 @@ std::shared_ptr<hal::Event> CopyKernel::Run(const context::Context& ctx,
       *rinfo.mutable_kernel_id() = kernel_id_;
       activity.AddMetadata(rinfo);
     }
-    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, "tile::hal::opencl::Executing");
+    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, &ki_, "tile::hal::opencl::Executing");
     [cmdbuf commit];
     return event;
   }
@@ -521,7 +521,7 @@ std::shared_ptr<hal::Event> ZeroKernel::Run(const context::Context& ctx,
       *rinfo.mutable_kernel_id() = kernel_id_;
       activity.AddMetadata(rinfo);
     }
-    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, "tile::hal::opencl::Executing");
+    auto event = std::make_shared<Event>(activity.ctx(), cmdbuf, &ki_, "tile::hal::opencl::Executing");
     [cmdbuf commit];
     return event;
   }
@@ -529,6 +529,7 @@ std::shared_ptr<hal::Event> ZeroKernel::Run(const context::Context& ctx,
 
 Event::Event(const context::Context& ctx,  //
              id<MTLCommandBuffer> cmdbuf,  //
+             const lang::KernelInfo* ki,   //
              const char* verb)             //
     : ctx_(ctx),                           //
       verb_(verb) {                        //
@@ -537,6 +538,7 @@ Event::Event(const context::Context& ctx,  //
   auto start = std::chrono::high_resolution_clock::now();
   auto handler = [ctx = ctx_,    //
                   verb = verb_,  //
+                  ki,            //
                   start,         //
                   promise](id<MTLCommandBuffer> cmdbuf) {
     try {
@@ -546,7 +548,7 @@ Event::Event(const context::Context& ctx,  //
         throw std::runtime_error(std::string("Kernel execution failure: ") + msg);
       }
       auto end = std::chrono::high_resolution_clock::now();
-      std::shared_ptr<hal::Result> result = std::make_shared<Result>(ctx, verb, start, end);
+      std::shared_ptr<hal::Result> result = std::make_shared<Result>(ctx, verb, ki, start, end);
       promise->set_value(result);
     } catch (...) {
       try {
@@ -565,16 +567,18 @@ Event::Event(const context::Context& ctx,  //
   boost::promise<std::shared_ptr<hal::Result>> promise;
   future_ = promise.get_future();
   auto now = std::chrono::high_resolution_clock::now();
-  std::shared_ptr<hal::Result> result = std::make_shared<Result>(ctx, verb, now, now);
+  std::shared_ptr<hal::Result> result = std::make_shared<Result>(ctx, verb, nullptr, now, now);
   promise.set_value(result);
 }
 
 Result::Result(const context::Context& ctx,                           //
                const char* verb,                                      //
+               const lang::KernelInfo* ki,                            //
                std::chrono::high_resolution_clock::time_point start,  //
                std::chrono::high_resolution_clock::time_point end)    //
     : ctx_{ctx},                                                      //
       verb_{verb},                                                    //
+      ki_{ki},                                                        //
       start_{start},                                                  //
       end_{end}                                                       //
 {}
@@ -593,6 +597,17 @@ void Result::LogStatistics() const {
   context::StdDurationToProto(&start, start_.time_since_epoch());
   context::StdDurationToProto(&end, end_.time_since_epoch());
   kSystemClock.LogActivity(ctx_, verb_, start, end);
+}
+
+// Dump the feature in comment and the execution time
+std::string Result::DumpExecTime() const {
+  if (ki_) {
+    size_t start = ki_->comments.rfind("//") + 2;
+    size_t end = ki_->comments.rfind("\n");
+    std::string feature = ki_->comments.substr(start, end - start);
+    return feature + "\n" + std::to_string(GetDuration().count()) + "\n";
+  }
+  return "";
 }
 
 }  // namespace metal

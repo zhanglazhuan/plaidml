@@ -1,0 +1,10 @@
+NUM_CLASSES = 64
+CM_TRAIN_DIR = 'CM_TRAIN_DIR'
+FEATURE_HEAD = 'Features:'
+PLAN_FILE = 'plan.dat'
+MEASURE_FILE = 'measure.dat'
+PREPROCESSED_FILE = 'preprocessed.dat'
+LAST_TESTED_FILE = 'last_tested.dat'
+LAST_BUILT_FILE = 'last_built.dat'
+FIRST_GENERATED_FILE = 'first_generated.dat'
+FAILED_TILE_FILE = 'failed_tile.dat'

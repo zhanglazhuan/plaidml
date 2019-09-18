@@ -46,6 +46,9 @@ class KernelResult final : public hal::Result {
   std::chrono::high_resolution_clock::duration GetDuration() const final;
   void LogStatistics() const final;
 
+  // Dump the feature in comment and the execution time
+  std::string DumpExecTime() const final;
+
  private:
   context::Context ctx_;
   std::shared_ptr<DeviceState> device_state_;

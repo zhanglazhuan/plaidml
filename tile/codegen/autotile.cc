@@ -4,9 +4,12 @@
 
 #include <algorithm>
 
+#include "base/util/env.h"
+#include "tile/util/features.h"
 #include "base/util/logging.h"
 #include "base/util/stream_container.h"
 #include "base/util/throw.h"
+#include "tile/util/xgb_invoker.h"
 #include "tile/codegen/alias.h"
 #include "tile/codegen/tile.h"
 #include "tile/math/util.h"
@@ -206,13 +209,15 @@ struct ComputeDensityCostModel {
 
   explicit ComputeDensityCostModel(const Block& block, const proto::AutotilePass& options)
       : options(options),  //
-        acc_idxs(block.accumulation_idxs(true)) {}
+        acc_idxs(block.accumulation_idxs(true)) {
+  }
 
   bool IndexFilter(const Block& block, const Index& idx) const {  //
     return options.acc_idxs() || !acc_idxs.count(&idx);
   }
 
   Cost ComputeCost(const Block& block, const Tile& tile) const {
+
     std::map<std::string, size_t> tile_by_name;
     for (size_t i = 0; i < block.idxs.size(); i++) {
       tile_by_name[block.idxs[i].name] = tile.dims[i].size;
@@ -242,6 +247,7 @@ struct ComputeDensityCostModel {
     if (options.max_count() && tot_count > options.max_count()) {
       return Cost::Continue;
     }
+
     int64_t tot_out_size = 1;
     int64_t tot_out_count = 1;
     for (size_t i = 0; i < block.idxs.size(); i++) {
@@ -297,13 +303,13 @@ struct TileResult {
 };
 
 struct TileSearchState {
-  std::set<Tile> found_tiles;
+  std::map<Tile, float> found_tiles;
   boost::optional<TileResult> best_so_far;
   std::set<std::pair<double, Tile>> todo;
 
   void AddTile(const Tile& tile, Cost cost) {
     IVLOG(4, "    Found " << cost << ": " << tile);
-    found_tiles.emplace(tile);
+    found_tiles.emplace(tile, (cost.outcome == Cost::Valid) ? cost.value : std::numeric_limits<float>::max());
     if (cost.outcome == Cost::Valid && (!best_so_far || cost.value < best_so_far->cost)) {
       best_so_far = TileResult{tile, cost.value};
     }
@@ -315,7 +321,8 @@ struct TileSearchState {
 
 template <typename CostModel>
 boost::optional<TileResult> PickBestTile(const Block& block, bool only_po2, bool only_even, bool only_multiple_of_32,
-                                         bool is_fast, const CostModel& model) {
+                                         bool is_fast, bool flip, bool interleave, const CostModel& model,
+                                         std::shared_ptr<util::XGBInvoker> ml_cost_model) {
   IVLOG(3, "Autotile> PickBestTile> block: " << block.name);
   TileSearchState state;
   Tile tile(block, only_multiple_of_32 ? 32 : 1);
@@ -367,6 +374,50 @@ boost::optional<TileResult> PickBestTile(const Block& block, bool only_po2, bool
       tile.dims[i] = prev;
     }
   }
+  if (ml_cost_model) {
+    util::ModelKey model_key = util::ExtractModelKeyFromBlock(const_cast<Block*>(&block));
+    if (!ml_cost_model->ModelKeyExists(model_key)) {
+      return state.best_so_far;
+    }
+    size_t n_samples = state.found_tiles.size();
+    size_t n_features = util::NumFeatureDim(const_cast<Block*>(&block));
+    float* samples = new float[n_samples * n_features];
+    float* current_sample = samples;
+    std::vector<Tile> tiles;
+    auto sorted_idxs = util::OrderedIndex(const_cast<Block*>(&block));
+    auto sorted_refs = util::OrderedRefinements(const_cast<Block*>(&block));
+    for (auto& tile_iter : state.found_tiles) {
+      const Tile& tile = tile_iter.first;
+      tiles.push_back(tile);
+      // Clone a new block first
+      auto new_block = CloneBlock(block);
+      // Tile the block according to the plan
+      const TileShape& tiling_shape = flip ? tile.counts() : tile.sizes();
+      ApplyTile(new_block.get(), tiling_shape, false, false, interleave || flip);
+      // We will try the machine learning-based cost model first
+      std::vector<size_t> feature = util::TiledBlockFeatures(new_block.get(), nullptr, sorted_idxs, sorted_refs);
+      std::vector<float> float_feature(feature.begin(), feature.end());
+      memcpy(current_sample, float_feature.data(), n_features * sizeof(float));
+      current_sample += n_features;
+    }
+    const float* classes = ml_cost_model->Predict(model_key, samples, n_samples, n_features);
+    float best_cost = std::numeric_limits<float>::max();
+    int best_class = std::numeric_limits<int>::max();
+    Tile best_tile(block, only_multiple_of_32 ? 32 : 1);
+    for (size_t i = 0; i < n_samples; ++i) {
+      int this_class = std::round(classes[i]);
+      if (this_class <= best_class) {
+        // In the best performance class
+        float cost = state.found_tiles[tiles[i]];
+        if (this_class < best_class || (this_class == best_class && cost < best_cost)) {
+          best_class = this_class;
+          best_cost = cost;
+          best_tile = tiles[i];
+        }
+      }
+    }
+    return TileResult{best_tile, best_cost};
+  }
   return state.best_so_far;
 }
 
@@ -374,7 +425,10 @@ boost::optional<TileResult> PickBestTile(const Block& block, bool only_po2, bool
 
 void AutotilePass::Apply(CompilerState* state) const {
   auto reqs = FromProto(options_.reqs());
-  RunOnBlocks(state->entry(), reqs, [this](const AliasMap& map, Block* block) {
+  std::string cm_eval_dir = env::Get("CM_EVAL_DIR");
+  bool use_ml = cm_eval_dir.size() > 0;
+  std::shared_ptr<util::XGBInvoker> ml_cost_model = use_ml ? std::make_shared<util::XGBInvoker>("model_list", cm_eval_dir) : nullptr; 
+  RunOnBlocks(state->entry(), reqs, [&](const AliasMap& map, Block* block) {
     if (block->has_any_tags(FromProto(options_.exclude()))) {
       return;
     }
@@ -386,9 +440,10 @@ void AutotilePass::Apply(CompilerState* state) const {
         }
       }
     }
+
     ComputeDensityCostModel model(*block, options_);
     auto result = PickBestTile(*block, options_.only_po2(), options_.only_even(), options_.only_multiple_of_32(),
-                               options_.fast(), model);
+                               options_.fast(), options_.flip(), options_.interleave(), model, ml_cost_model);
     if (result) {
       IVLOG(2, "Autotile> block: " << block->name << ", tile: " << result->tile << ", cost: " << result->cost);
       const TileShape& tiling_shape = options_.flip() ? result->tile.counts() : result->tile.sizes();
@@ -431,7 +486,7 @@ void PartitionComputePass::Apply(CompilerState* state) const {
   auto reqs = FromProto(options_.reqs());
   RunOnBlocks(state->entry(), reqs, [this](const AliasMap& map, Block* block) {
     PartitionComputeCostModel model(*block, options_);
-    auto result = PickBestTile(*block, false, false, options_.only_multiple_of_32(), false, model);
+    auto result = PickBestTile(*block, false, false, options_.only_multiple_of_32(), false, false, false, model, nullptr);
     if (result) {
       IVLOG(2, "PartitionCompute> block: " << block->name                 //
                                            << ", tile: " << result->tile  //

@@ -1,5 +1,5 @@
 local PARAMS = {
-  nvidia: {
+  nvidia_test: {
     LOCAL_MEM_KIB: 48,
     NUM_THREADS: 256,
     CACHE_WIDTH: 128,
@@ -86,25 +86,28 @@ local PARAMS = {
               },
             },
 
-            {
-              name: 'tile_contract',
+            {   
+              name: 'generate_plans',
               pass: {
-                '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.AutotilePass',
-                reqs: ['contraction'],
-                outer_set: ['contract_outer', 'kernel'],
-                inner_set: ['contract_inner'],
-                fail_outer_set: ['contract_unexpanded', 'kernel'],
-                fail_inner_set: ['no_threads'],
-                clear_outer: true,
+                '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.GeneratePlansPass',
+                reqs: ['main'],
+                plan_file: "plan.dat",
                 acc_idxs: true,
                 only_po2: true,
                 odd_size: true,
-                min_out_count: PARAMS[cfg].NUM_UNITS,
-                max_total_size: PARAMS[cfg].LOCAL_MEM_KIB * 1024,
-                max_sizes_product: PARAMS[cfg].NUM_THREADS * 64,
-                min_out_size: PARAMS[cfg].NUM_THREADS,
-                cache_width: PARAMS[cfg].CACHE_WIDTH,
-                ml_cost_model: true,
+                max_mem_size: PARAMS[cfg].LOCAL_MEM_KIB * 1024,
+              }
+            },
+
+            {
+              name: 'generate_tiles',
+              pass: {
+                '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.GenerateTilesPass',
+                reqs: ['main'],
+                plan_file: "plan.dat",
+                outer_set: ['contract_outer', 'kernel'],
+                inner_set: ['contract_inner'],
+                interleave: false,
               }
             },
 
@@ -187,7 +190,7 @@ local PARAMS = {
                 reqs: ['all'],
               },
             },
-
+/*
             {
               name: 'reduce_constraints',
               pass: {
@@ -195,7 +198,7 @@ local PARAMS = {
                 reqs: ['all'],
               },
             },
-
+*/
             {
               name: 'fuse_inner',
               pass: {

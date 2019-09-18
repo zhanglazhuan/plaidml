@@ -16,3 +16,26 @@ filegroup(
     name = "python",
     srcs = ["env/python.exe"],
 )
+
+cc_import(
+    name = "xgboost_import",
+    shared_library = "env/lib/libxgboost.dll",
+    hdrs = glob([
+        "env/include/xgboost/**",
+    ]),
+)
+
+cc_library(
+    name = "xgboost_lib",
+    hdrs = glob([
+       "env/include/xgboost/**",
+    ]),
+    includes = [
+       "env/include",
+       "env/include/xgboost",
+    ],
+    deps = [
+        ":xgboost_import",
+    ],
+    visibility = ["//visibility:public"],
+)

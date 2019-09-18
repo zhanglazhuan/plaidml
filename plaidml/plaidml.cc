@@ -157,10 +157,13 @@ class Evaluator final {
   const std::string& get_id() const { return id_; }
   const std::shared_ptr<tile::ProgramCache>& get_program_cache() const { return program_cache_; }
 
-  std::shared_ptr<tile::Program> MakeProgram(const context::Context& ctx, const tile::proto::Program& prog,
+  std::shared_ptr<tile::Program> MakeProgram(const context::Context& ctx,
+                                             const std::string& feedback_id,
+                                             const tile::proto::Program& prog,
                                              tile::ConstBufferManager* const_bufs) {
     std::shared_ptr<tile::Program> compiled;
-    std::tie(std::ignore, compiled) = program_cache_->GetProgram(ctx, "sdk", prog, const_bufs);
+    std::tie(std::ignore, compiled) =
+      program_cache_->GetProgram(ctx, feedback_id.size() ? feedback_id : "sdk", prog, const_bufs);
     return compiled;
   }
 
@@ -1660,11 +1663,29 @@ extern "C" plaidml_invocation* plaidml_schedule_invocation(vai_ctx* ctx, plaidml
         const_bufs.buffers[kvp.first] = in_buffers[kvp.first];
       }
     }
-    auto program = evaluator->MakeProgram(activity.ctx(), prog, &const_bufs);
+
+    std::string feedback_id = "";
+    bool sync_exec = false;
+    // Under some conditions, we need synchronized execution
+    bool is_cm_train = vertexai::env::Get("CM_TRAIN_DIR").length() > 0;
+    sync_exec |= is_cm_train;
+    if (is_cm_train) {
+      evaluator->get_program_cache()->Disable();
+      feedback_id = std::to_string(clock());
+    }
+
+    auto program = evaluator->MakeProgram(activity.ctx(), feedback_id, prog, &const_bufs);
 
     // Run the program
     auto result = program->Run(activity.ctx(), in_buffers, out_buffers);
-    result.then(boost::launch::async,
+
+    if (sync_exec) {
+      // for synchronized execution, typically for testing with processes
+      result.get();
+    }
+    else {
+      // by default
+      result.then(boost::launch::async,
                 [rundown = std::move(rundown), program = std::move(program)](decltype(result) fut) {
                   try {
                     fut.get();
@@ -1674,7 +1695,7 @@ extern "C" plaidml_invocation* plaidml_schedule_invocation(vai_ctx* ctx, plaidml
                     LOG(ERROR) << ex.what();
                   }
                 });
-
+    }
     return invocation.release();
   } catch (...) {
     vertexai::SetLastException(std::current_exception());

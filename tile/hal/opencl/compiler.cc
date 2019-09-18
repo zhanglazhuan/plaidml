@@ -24,6 +24,7 @@
 #include "tile/hal/opencl/emitocl.h"
 #include "tile/hal/opencl/library.h"
 #include "tile/lang/semprinter.h"
+#include "tile/util/train_status.h"
 
 namespace fs = boost::filesystem;
 
@@ -61,20 +62,25 @@ class Build {
 };
 
 struct BuildState {
-  BuildState(Build* b, const std::string& c): build(b), current(c) {}
+  BuildState(Build* b, const lang::KernelInfo& ki, util::TrainStatus* ts):
+    build(b), kernel_info(ki), train_status{ts} {}
   Build* build;
-  std::string current;
+  const lang::KernelInfo kernel_info;
+  util::TrainStatus* train_status;
 };
 
 // Compile single block/kernel
 void Build::CompileKernel(std::shared_ptr<BuildState> build_state) {
-  auto prog_it = build_state->build->library()->program().find(build_state->current);
+  auto prog_it = build_state->build->library()->program().find(build_state->kernel_info.kname);
   cl_device_id device_id = build_state->build->device_state()->did();
   clock_t build_start = clock();
   Err err = ocl::BuildProgram(prog_it->second.get(), 1, &device_id,
     "-cl-fast-relaxed-math -cl-mad-enable -cl-unsafe-math-optimizations", 
     &OnBuildComplete, (void *)(build_state.get()));
   clock_t build_end = clock();
+  if (build_state->train_status) {
+    build_state->train_status->BuiltOneTile(build_state->kernel_info.comments);
+  }
   if (env::Get("PLAIDML_BUILD_TIMES") == "1") {
     double elapsed_secs = double(build_end - build_start) / CLOCKS_PER_SEC;
     std::cout << "Built " << prog_it->first << " in " << elapsed_secs << " seconds.\n";
@@ -89,17 +95,29 @@ boost::future<std::unique_ptr<hal::Library>> Build::Start() {
   auto result = prom_.get_future();
   boost::thread_group threads;
   boost::asio::io_service io_service;
+  bool is_cm_train = env::Get("CM_TRAIN_DIR").size() > 0;
 
   // Allocate tasks
   auto& program_map = library_->program();
+  auto& kernel_info = library_->kernel_info();
   clock_t build_start = clock();
-  for (auto& prog_it : program_map) {
-    auto bs = std::make_shared<BuildState>(this, prog_it.first);
-    io_service.post(boost::bind(&(Build::CompileKernel), bs));
+  util::TrainStatus ts(env::Get("CM_TRAIN_DIR"));
+  for (auto& ki : kernel_info) {
+    if (program_map.find(ki.kname) != program_map.end()) {
+      auto bs = std::make_shared<BuildState>(this, ki, is_cm_train ? &ts : nullptr);
+      io_service.post(boost::bind(&(Build::CompileKernel), bs));
+    }
   }
   // Create thread pool and threads
-  unsigned int n_threads = (env::Get("OPENCL_BUILD_THREADS") == "") ? 
-    boost::thread::hardware_concurrency() : std::atoi(env::Get("OPENCL_BUILD_THREADS").c_str());
+  unsigned int n_threads = 1;
+  if (is_cm_train) {
+    ts.StartBuildTiles();
+  }
+  else {
+    n_threads = (env::Get("OPENCL_BUILD_THREADS") == "") ? 
+        boost::thread::hardware_concurrency() : std::atoi(env::Get("OPENCL_BUILD_THREADS").c_str());
+  }
+  // For training, we don't use parallel compilation
   for (size_t i = 0; i < n_threads; ++i) {
     threads.create_thread(boost::bind(&boost::asio::io_service::run, &io_service));
   }
@@ -139,11 +157,11 @@ void Build::OnBuildComplete(cl_program program, void* handle) noexcept {
                                         CL_PROGRAM_BUILD_STATUS, sizeof(status), &status, nullptr),
                "Unable to construct program build status");
     if (status != CL_BUILD_SUCCESS) {
-      LOG(WARNING) << "Failed to build program " << build_state->current;
-      build->binfo_[build_state->current].set_cl_build_status(status);
-      build->OnError(build_state->current);
+      LOG(WARNING) << "Failed to build program " << build_state->kernel_info.kname;
+      build->binfo_[build_state->kernel_info.kname].set_cl_build_status(status);
+      build->OnError(build_state->kernel_info.kname);
     }
-    build->activity_.AddMetadata(build->binfo_[build_state->current]);
+    build->activity_.AddMetadata(build->binfo_[build_state->kernel_info.kname]);
   } catch (...) {
     build->prom_.set_exception(boost::current_exception());
   }
