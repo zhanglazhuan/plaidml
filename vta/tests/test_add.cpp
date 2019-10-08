@@ -8,7 +8,6 @@
 using namespace ::std;
 
 int foo(void* ptr) {
-  cout << "QQQQQ" << endl;
   VTAUopLoopBegin(64, 1, 1, 0);
   VTAUopPush(1, 0, 0, 64, 0, 2, 0, 0);
   VTAUopLoopEnd();

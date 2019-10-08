@@ -2,7 +2,6 @@
 #include "../include/vta/hw_spec.h"
 #include "../include/vta/runtime.h"
 #include <iostream>
-
 Tensor* inp = NULL;
 Tensor* wgt = NULL;
 Tensor* res = NULL;
@@ -63,7 +62,10 @@ void preproc(Tensor* ts, vector<int> factor) {
       pOld += ts->shape[1];
     }
 
-    free(ts->data);
+    ts->oldData = ts->data;
+    ts->oldShape = ts->shape;
+    ts->oldDataLen = ts->dataLen;
+
     ts->data = newData;
     ts->shape = newShape;
     ts->dataLen = newDataLen;
@@ -75,14 +77,45 @@ void preproc(Tensor* ts, vector<int> factor) {
   // Transpose
   ts->transpose({0, 2, 1, 3});
 }
+
+void postProc(Tensor *ts) {
+  // Transpose
+  ts->transpose({0, 2, 1, 3});
+
+  // Reshape
+  ts->reshape({ts->shape[0] * ts->shape[1], ts->shape[2] * ts->shape[3]});
+
+  // Restore
+  if (ts->oldData) {
+    int* pNew = ts->data;
+    int* pOld = ts->oldData;
+    for (int i = 0; i < ts->oldShape[0]; i++) {
+      memcpy(pOld, pNew, sizeof(int) * ts->oldShape[1]);
+
+      pNew += ts->shape[1];
+      pOld += ts->oldShape[1];
+    }
+
+    free(ts->data);
+    ts->data = ts->oldData;
+    ts->shape = ts->oldShape;
+    ts->dataLen = ts->oldDataLen;
+
+    ts->oldData = NULL;
+    ts->oldShape = {};
+    ts->oldDataLen = -1;
+  }
+}
+
 Tensor* gemm(Tensor* t1, Tensor* t2) {
   vector<int> shape1 = t1->shape;
   vector<int> shape2 = t2->shape;
-  Tensor t3({shape1[0], shape2[0]});
+
+  Tensor *t3 = new Tensor({shape1[0], shape2[0]});
 
   inp = t1;
   wgt = t2;
-  res = &t3;
+  res = t3;
 
   assert(shape1.size() == 2 && shape2.size() == 2);
 
@@ -109,7 +142,6 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
   VTABufferCopy(inp->data, 0, inpBuf, 0, inpSize, 1);
   VTABufferCopy(wgt->data, 0, wgtBuf, 0, wgtSize, 1);
 
-#if 1
   void* pKernel1 = NULL;
   VTAPushGEMMOp(&pKernel1, kernel1, NULL, 0);
 
@@ -131,10 +163,11 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
 
   VTABufferCopy(resBuf, 0, res->data, 0, resSize, 2);
 
-  res->transpose({0, 2, 1, 3});
+  postProc(res);
   res->dump();
+  
+  inp = wgt = res = NULL;
   return res;
-#endif
 }
 
 void* gemm(void* data1, vector<int> shape1, void* data2, vector<int> shape2) {
@@ -142,4 +175,6 @@ void* gemm(void* data1, vector<int> shape1, void* data2, vector<int> shape2) {
   Tensor t2(shape2, data2);
 
   Tensor* t3 = gemm(&t1, &t2);
+
+  t3->dump();
 }

@@ -952,7 +952,7 @@ class CommandQueue {
     uop_queue_.AutoReadBarrier();
     insn_queue_.AutoReadBarrier();
     // Dump instructions if debug enabled
-    if (debug_flag_ & VTA_DEBUG_DUMP_INSN || true) {
+    if (debug_flag_ & VTA_DEBUG_DUMP_INSN) {
       insn_queue_.DumpInsn();
     }
     // Make sure that the last instruction is a finish instruction

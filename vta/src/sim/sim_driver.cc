@@ -257,7 +257,6 @@ class SRAM {
     uint64_t xtotal = op->x_size + op->x_pad_0 + op->x_pad_1;
     uint32_t ytotal = op->y_size + op->y_pad_0 + op->y_pad_1;
     uint64_t sram_end = op->sram_base + xtotal * ytotal;
-    cout << "QQ" << kElemBytes << ' ' << xtotal << ' ' << ytotal << endl;
     CHECK_LE(sram_end, kMaxNumElem);
     memset(sram_ptr, 0, kElemBytes * xtotal * op->y_pad_0);
     sram_ptr += xtotal * op->y_pad_0;
@@ -375,7 +374,6 @@ class Device {
 
  private:
   void Run(const VTAGenericInsn* insn) {
-    cout << "opcode:" << insn->opcode << endl;
     const VTAMemInsn* mem = reinterpret_cast<const VTAMemInsn*>(insn);
     const VTAGemInsn* gem = reinterpret_cast<const VTAGemInsn*>(insn);
     const VTAAluInsn* alu = reinterpret_cast<const VTAAluInsn*>(insn);

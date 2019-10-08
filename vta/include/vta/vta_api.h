@@ -136,11 +136,21 @@ class Tensor {
     cout << endl;
   }
 
+  void dumpShape() {
+    cout << "shape:";
+    for (int i=0; i<shape.size(); i++) {
+      cout << shape[i] << ' ';
+    }
+    cout << endl;
+  }
   void clear() { memset(data, 0, sizeof(int) * dataLen); }
 
-  int* data;
+  int *data;
   int dataLen;
   vector<int> shape;
+  int *oldData = NULL;
+  vector<int> oldShape;
+  int oldDataLen = -1;
 };
 
 Tensor* gemm(Tensor* t1, Tensor* t2);
