@@ -7,7 +7,10 @@ OBJ = $(patsubst %.cc, %.o, $(SRC))
 OBJ2 = $(notdir $(OBJ))
 LINK_FLAGS = -shared -fPIC
 
-all: $(OBJ) test_add test_mm
+all: vta test_add test_mm
+
+vta: $(OBJ) 
+	@echo $(OBJ)
 	@echo $(OBJ2)
 	$(CPP) $(LINK_FLAGS) -o libVTA.so $(OBJ2) 
 
