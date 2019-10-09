@@ -31,3 +31,28 @@ The key features of VTA include:
   - Flexible RPC support to ease deployment, and program FPGAs with the convenience of Python.
 
 Learn more about VTA [here](https://docs.tvm.ai/vta/index.html).
+
+To use the GEMM functionality proposed by VTA, please cheack vta_api.cc and vta_api.h.
+
+Usage:
+Make sure matrices for GEMM follow the VTA computation rules:
+Input matrix: (X, K)
+Weight matrix: (Y, K)
+
+Result matrix: (X, Y)
+
+VTA will do the reduction along the K axis.
+
+
+For matrices (X, K) and (K, Y), transpose the second matrix to (Y, K).
+Then we can do GEMM using VTA.
+
+Please check the testing file test_mm.cpp for more VTA computation information.
+For reference, please check the python file test_mm.py.
+
+Step:
+1. Compile: make
+2. VTA: ./tests/test_mm
+3. Reference: python ./tests/test_mm.py
+
+

@@ -6,6 +6,7 @@ Tensor* inp = NULL;
 Tensor* wgt = NULL;
 Tensor* res = NULL;
 
+// Computation kernel for SRAM cleanup
 int kernel1(void* ptr) {
   for (int i = 0; i < 2; i++) {
     VTAUopLoopBegin(res->shape[i], res->shape[i + 1], 0, 0);
@@ -20,6 +21,7 @@ int kernel1(void* ptr) {
   return 0;
 }
 
+// Computation kernel for GEMM
 int kernel2(void* ptr) {
   for (int i = 0; i < 2; i++) {
     if (i == 0)
@@ -36,12 +38,30 @@ int kernel2(void* ptr) {
   return 0;
 }
 
+// The pre processing step will transform the original matrix into
+// the VTA defined matrix dor computation
+// .
+// VTA has its computation rules for GEMM.
+// The input matrix and weight matrix should follow the rules
+// to get correct GEMM result.
+// 
+// For target input matrix with shape (X, Y), we need to transform it
+// to a matrix with new shape (X / factorX, Y / factorY,  factorX, factorY).
+//
+// The following demonstrates the step:
+// 1. Zero padding X and Y axes 
+//    If original shape is not aligned with the specified factor, we pad
+//    the original matrix with zeros.
+// 2. After zero padding, we reshape the 2-D matrix into a 4-D matrix.
+// 3. Finallhy, we transpose the 4-D matrix with target transposing
+//    axes (0, 2, 1, 3).
 void preproc(Tensor* ts, vector<int> factor) {
   // Padding
   vector<int> newShape;
   int newDataLen = 1;
   bool realloc = false;
 
+  // Calculating the new data length for alignment
   for (int i = 0; i < ts->shape.size(); i++) {
     int si = ts->shape[i];
     int newSi = (si + (factor[i] - 1)) & ~(factor[i] - 1);
@@ -50,6 +70,8 @@ void preproc(Tensor* ts, vector<int> factor) {
     cout << si << ' ' << newSi << endl;
   }
 
+  // If new data length does not match with the old
+  // data length, do zero padding.
   if (newDataLen != ts->dataLen) {
     int* newData = (int*)calloc(newDataLen, sizeof(int));
     int* pNew = newData;
@@ -78,6 +100,9 @@ void preproc(Tensor* ts, vector<int> factor) {
   ts->transpose({0, 2, 1, 3});
 }
 
+// The post processing step will do transpose and reshape to transform
+// the result back to final computed result.
+// The padded zeros will also be removed in this step.
 void postProc(Tensor *ts) {
   // Transpose
   ts->transpose({0, 2, 1, 3});
@@ -107,6 +132,19 @@ void postProc(Tensor *ts) {
   }
 }
 
+// Do the GEMM for two input tensors
+// Step:
+// 1. Preprocess: zero padding for alignment
+// 2. GEMM
+// 3. Postprocess: remove the padded zeros to get the computed result
+// 4. Return the result
+//
+// In VTA, we have to copy the data from host to target DRAM first.
+// Then we push the virtual instructions on the command queue using 
+// its proposed API like VTAPushGEMMOp or VTAStoreBuffer2D. 
+// After pushing all the virtual instructions on the command, we can
+// use VTASynchronize to execute the instructions and get the result.
+// Finally, we copy the data back to host from target DRAM.
 Tensor* gemm(Tensor* t1, Tensor* t2) {
   vector<int> shape1 = t1->shape;
   vector<int> shape2 = t2->shape;
@@ -130,18 +168,22 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
   wgt->dump();
 #endif
 
+  // Allocate a new commmand buffer
   VTACommandHandle handle = VTATLSCommandHandle();
   int inpSize = inp->dataLen * sizeof(int);
   int wgtSize = wgt->dataLen * sizeof(int);
   int resSize = res->dataLen * sizeof(int);
 
+  // Allocate memory buffer on target DRAM
   int* inpBuf = (int*)VTABufferAlloc(inpSize);
   int* wgtBuf = (int*)VTABufferAlloc(wgtSize);
   int* resBuf = (int*)VTABufferAlloc(resSize);
 
+  // Copy data from host to target DRAM
   VTABufferCopy(inp->data, 0, inpBuf, 0, inpSize, 1);
   VTABufferCopy(wgt->data, 0, wgtBuf, 0, wgtSize, 1);
 
+  // Zeroing the result on target SRAM
   void* pKernel1 = NULL;
   VTAPushGEMMOp(&pKernel1, kernel1, NULL, 0);
 
@@ -150,6 +192,7 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
   // ki: kernel inner factor
   assert(inp->shape[3] == wgt->shape[3]);
 
+  // Do real GEMM
   void* pKernel2 = NULL;
   for (int ko = 0; ko < inp->shape[1]; ko++) {
     VTALoadBuffer2D(handle, inpBuf, ko, 1, inp->shape[0], inp->shape[1], 0, 0, 0, 0, 0, 2);
@@ -158,9 +201,13 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
     VTAPushGEMMOp(&pKernel2, kernel2, NULL, 0);
   }
 
+  // Move the data from SRAM to DRAM
   VTAStoreBuffer2D(handle, 0, 4, resBuf, 0, res->shape[0], res->shape[1], res->shape[0]);
+  
+  // Execute the commands
   VTASynchronize(handle, 0x80000000);
 
+  // Copy to data from target DRAM to host
   VTABufferCopy(resBuf, 0, res->data, 0, resSize, 2);
 
   postProc(res);
@@ -170,6 +217,7 @@ Tensor* gemm(Tensor* t1, Tensor* t2) {
   return res;
 }
 
+// The wrapper function to do GEMM for two raw input tensors .
 void* gemm(void* data1, vector<int> shape1, void* data2, vector<int> shape2) {
   Tensor t1(shape1, data1);
   Tensor t2(shape2, data2);
@@ -177,4 +225,10 @@ void* gemm(void* data1, vector<int> shape1, void* data2, vector<int> shape2) {
   Tensor* t3 = gemm(&t1, &t2);
 
   t3->dump();
+
+  void *result = t3->data;
+
+  delete (t3);
+
+  return result;
 }
