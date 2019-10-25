@@ -1,15 +1,15 @@
 steps:
-  - label: :radioactive_sign: :darwin:
+  - label: ':radioactive_sign: :darwin:'
     command: bazelisk clean --expunge
     agents:
       PLATFORM: macos_x86_64
 
-  - label: :radioactive_sign: :linux:
+  - label: ':radioactive_sign: :linux:'
     command: bazelisk clean --expunge
     agents:
       PLATFORM: linux_x86_64
 
-  - label: :radioactive_sign: :windows:
+  - label: ':radioactive_sign: :windows:'
     command: bazelisk clean --expunge
     agents:
       PLATFORM: windows_x86_64
