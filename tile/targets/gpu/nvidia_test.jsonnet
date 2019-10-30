@@ -106,18 +106,19 @@ local PARAMS = {
                 reqs: ['main'],
                 plan_file: "plan.dat",
                 outer_set: ['contract_outer', 'kernel'],
+                middle_set: ['contract_middle'],
                 inner_set: ['contract_inner'],
                 interleave: false,
               }
             },
-
+/*
             {
               name: 'tile_middle',
               pass: {
                 '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.AutotilePass',
                 reqs: ['contract_outer'],
                 inner_set: ['contract_middle'],
-                acc_idxs: false,
+                acc_idxs: true,
                 input_cost: 0.0, 
                 output_cost: 0.0,
                 min_out_count: PARAMS[cfg].NUM_UNITS,
@@ -125,7 +126,7 @@ local PARAMS = {
                 only_po2: true,
               }
             },
-
+*/
             {
               name: 'fuse_eltwise_eltwise',
               pass: {
@@ -210,15 +211,6 @@ local PARAMS = {
               }
             },
 
-            // After all fusion, eliminate dead code again
-            {
-              name: 'dead_code_elimination',
-              pass: {
-                '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.DeadCodeEliminationPass',
-                reqs: ['all'],
-              },
-            },
-            
             {
               name: 'cache_unexpanded',
               pass: {
@@ -271,15 +263,6 @@ local PARAMS = {
                 reqs: ['contract_outer'],
                 loc: { 'devs': [{'name': 'LOCAL', 'units': [{'offset': 0}]}] },
               }
-            },
-
-            // After all fusion, eliminate dead code again
-            {
-              name: 'dead_code_elimination',
-              pass: {
-                '@type': 'type.vertex.ai/vertexai.tile.codegen.proto.DeadCodeEliminationPass',
-                reqs: ['all'],
-              },
             },
 
             {

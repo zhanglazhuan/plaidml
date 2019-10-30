@@ -723,11 +723,16 @@ message GenerateTilesPass {
   required string plan_file = 2;
   // Set the following tags on the outer block post tiling
   repeated string outer_set = 3;
+  // Set the following tags on the middle block post tiling
+  repeated string middle_set = 4;
   // Set the following tags on the inner block post tiling
-  repeated string inner_set = 4;
+  repeated string inner_set = 5;
   // Whether interleavedly tile the block
-  required bool interleave = 5;
-  // Maximum generated blocks
-  optional uint64 max_blocks = 6 [default = 1024];
+  required bool interleave = 6;
+  // Maximum generated plans
+  optional uint64 max_plans = 7 [default = 256];
+  // Minimum workgroups
+  optional uint64 min_workgroups = 8 [default = 512];
+  // Minimum accumulation iterations
+  optional uint64 min_accumulation = 9 [default = 8];
 }
-

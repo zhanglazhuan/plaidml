@@ -374,6 +374,7 @@ boost::optional<TileResult> PickBestTile(const Block& block, bool only_po2, bool
       tile.dims[i] = prev;
     }
   }
+/*
   if (ml_cost_model) {
     util::ModelKey model_key = util::ExtractModelKeyFromBlock(const_cast<Block*>(&block));
     if (!ml_cost_model->ModelKeyExists(model_key)) {
@@ -418,6 +419,7 @@ boost::optional<TileResult> PickBestTile(const Block& block, bool only_po2, bool
     }
     return TileResult{best_tile, best_cost};
   }
+*/
   return state.best_so_far;
 }
 

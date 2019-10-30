@@ -43,8 +43,6 @@ private:
   std::set<const Index*> acc_idxs_;
   std::vector<Index*> index_;
   std::vector<uint64_t> plan_;
-  std::vector<std::string> sorted_idxs_;
-  std::vector<std::string> sorted_refs_;
   std::vector<std::vector<uint64_t>> plan_list_;
 };
 
@@ -56,8 +54,6 @@ TilePlanGenerator::TilePlanGenerator(Block* target, const proto::GeneratePlansPa
     }
   }
   plan_.resize(index_.size());
-  sorted_idxs_ = util::OrderedIndex(target);
-  sorted_refs_ = util::OrderedRefinements(target);
 };
 
 bool TilePlanGenerator::IsValidPlan() {

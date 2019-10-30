@@ -26,13 +26,13 @@ def read_data(train_dir):
         break
       second_line = fp.readline().split()
       exec_time = float(second_line[0])
-      perf_class = int(second_line[1])
+      cost = float(second_line[1])
       model_key, feature = extract_feature_line(feature_str)
       if not model_key in features:
         features[model_key] = []
         performance[model_key] = []
       features[model_key].append(feature)
-      performance[model_key].append(perf_class)
+      performance[model_key].append(np.log(cost))
   return features, performance
 
 def train(train_dir, features, performance):
@@ -42,15 +42,14 @@ def train(train_dir, features, performance):
   models = PerfLearner()
   for model_key in features:
     params = {'booster' : 'gbtree',
-              'max_depth' : 24,
+              'max_depth' : 16,
               'min_child_weight': 1,
-              'objective' : 'multi:softmax',
-              'eta' : 0.3,
-              'num_class' : NUM_CLASSES,
+              'objective' : 'reg:squarederror',
+              'eta' : 0.1,
               'subsample' : 0.5,
               'alpha' : 0.1,
-              'colsample_bytree' : 0.9,
-              'eval_metric' : 'mlogloss',
+              'colsample_bytree' : 1.0,
+              'eval_metric' : 'rmse',
               'grow_policy' : 'depthwise'}
     dtrain = xgb.DMatrix(features[model_key], performance[model_key])
     dtest = xgb.DMatrix(features[model_key], performance[model_key])

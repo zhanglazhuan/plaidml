@@ -31,15 +31,6 @@ bool comp_coeff(const CacheVar& a, const CacheVar& b) {
   return a.coeff > b.coeff;
 }
 
-bool AllZeroAccess(const Refinement& ref) {
-  for (const auto& access : ref.access) {
-    if (access != Affine()) {
-      return false;
-    }
-  }
-  return true;
-}
-
 // Find out the minimal odd >= n
 size_t NextOdd(size_t n) {
   return (n & 0x1) ? n : (n + 1);
@@ -86,7 +77,7 @@ void FixupMiddleBlockRefs(Block* outer, Block* inner,
     if (sub && sub.get() != inner && !sub->has_any_tags(end_tags)) {
       for (auto& ref : sub->refs) {
         if (ref.from == var_name) {
-          if (AllZeroAccess(ref)) {
+          if (ref.AllZeroAccess()) {
             ref.mut().location = it->location;
             ref.mut().offset = it->offset;
             ref.mut().access = it->access;

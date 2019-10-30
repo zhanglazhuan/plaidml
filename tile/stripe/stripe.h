@@ -222,6 +222,13 @@ struct BankDimension {
   size_t dim_pos;
 };
 
+struct Extent {
+  int64_t min;
+  int64_t max;
+};
+
+std::ostream& operator<<(std::ostream& os, const stripe::Extent& extent);
+
 struct Refinement : Taggable {
   Refinement() = default;
   Refinement(RefDir dir,                             //
@@ -270,7 +277,10 @@ struct Refinement : Taggable {
   boost::optional<Affine> cache_unit;       // Which cache we should use when encaching this refinement
 
   Affine FlatAccess() const;
+  bool AllZeroAccess() const;
   TensorShape ApplyTile(const std::map<std::string, size_t>& tile_by_name) const;
+  // Compute the extents of the access according to idxs
+  std::vector<Extent> Extents(const std::vector<Index>& idxs) const;
 
   // Returns a mutable Refinement from a const Refinement.  This is
   // useful when processing a set<Refinement>, since for safety

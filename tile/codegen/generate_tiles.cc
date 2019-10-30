@@ -22,12 +22,13 @@ class BlockGenerator {
 public:
   BlockGenerator(Block* target, const std::string& train_dir,
                  const std::string& plan_file, const proto::GenerateTilesPass& options);
-  bool GenerateBlocks();
-  void GenerateBlock(const std::vector<size_t>& plan);
+  bool GenerateAllBlocks();
+  void GeneratePlanBlocks(const std::vector<size_t>& plan);
   StatementList& BlockList() { return block_list_; }
 
 private:
   Block* target_;
+  std::set<std::string> acc_idxs_;
   std::string plan_file_;
   const proto::GenerateTilesPass& options_;
   StatementList block_list_;
@@ -40,13 +41,14 @@ private:
 BlockGenerator::BlockGenerator(Block* target, const std::string& train_dir, 
                                const std::string& plan_file, const proto::GenerateTilesPass& options):
     target_{target}, plan_file_{plan_file}, options_{options}, status_{train_dir} {
-  sorted_idxs_ = util::OrderedIndex(target);
-  sorted_refs_ = util::OrderedRefinements(target);
-  block_hash_ = std::to_string(util::HashBlockFeatures(target, sorted_idxs_, sorted_refs_)) + " ";
+  auto accs = target->accumulation_idxs();
+  for (const auto& idx : accs) {
+    acc_idxs_.insert(idx->name);
+  }
 }
 
 // Generate all tiled blocks
-bool BlockGenerator::GenerateBlocks() {
+bool BlockGenerator::GenerateAllBlocks() {
   int last_tested = status_.LastTestedTile();
   int last_built = status_.LastBuiltTile();
   // If last_tested == last_built, it means that last part was successful.
@@ -54,63 +56,124 @@ bool BlockGenerator::GenerateBlocks() {
   // Otherwise, last part was failed on tile (last_built + 1).
   // If last_built > last_tested + 1, we generate the block in range (last_tested, last_built).
   // Otherwise, we skip last_built.
-  int first;
-  int last;
+  int first_block;
+  int last_block;
+  int blocks_per_plan = target_->refs.size();
   if (last_tested == last_built) {
-    first = last_tested + 1;
-    last = last_tested + options_.max_blocks();
+    first_block = last_tested + 1;
+    last_block = last_tested + options_.max_plans() * blocks_per_plan;
   }
   else {
-    status_.AddFailedTile(last_built + 1);
-    if (last_built > last_tested + 1) {
-      first = last_tested + 1;
-      last = last_built;
+    status_.AddFailedTile((last_built + 1) / blocks_per_plan);
+    if (last_built >= last_tested + blocks_per_plan) {
+      first_block = last_tested + 1;
+      last_block = (last_built + 1) / blocks_per_plan * blocks_per_plan - 1;
     }
     else {
-      first = last_tested + 2;
-      last = first + options_.max_blocks() - 1;
+      status_.SetLastTestedTile(last_tested + blocks_per_plan);
+      first_block = last_tested + blocks_per_plan + 1;
+      last_block = first_block + options_.max_plans() * blocks_per_plan - 1;
     }
   }
-  while (first <= last && status_.IsFailedTile(first)) {
-    ++first;
+  while (status_.IsFailedTile(first_block / blocks_per_plan)) {
+    first_block += blocks_per_plan;
   }
-  if (first > last) {
+  if (first_block > last_block) {
     return false;
   }
+  int first_plan = first_block / blocks_per_plan;
+  int last_plan = last_block / blocks_per_plan;
   int count = 0;
   // Read plan file and restore plans
   std::string line;
   std::ifstream ifs(plan_file_, std::ios_base::in);
   while (std::getline(ifs, line)) {
-    if (first <= count && count <= last) {
+    if (first_plan <= count && count <= last_plan) {
       std::stringstream ss(line);
       std::string token;
       std::vector<size_t> plan;
       while (std::getline(ss, token, ' ')) {
         plan.push_back(std::stoi(token));
       }
-      GenerateBlock(plan);
+      GeneratePlanBlocks(plan);
     }
     ++count;
   }
   ifs.close();
-  status_.SetFirstGeneratedTile(first);
+  status_.SetFirstGeneratedTile(first_block);
   return true;
 };
 
-// Generate the tiled block according to the plan
-void BlockGenerator::GenerateBlock(const std::vector<size_t>& plan) {
-  // Clone a new block first
-  auto new_block = CloneBlock(*target_);
-  // Tile the block according to the plan
-  ApplyTile(new_block.get(), plan, false, false, options_.interleave());
-  new_block->add_tags(FromProto(options_.outer_set()));
-  auto inner = new_block->SubBlock(0);
-  inner->add_tags(FromProto(options_.inner_set()));
-  // Encode features in the comments
-  new_block->comments = block_hash_ + FEATURE_HEAD + util::TiledBlockFeaturesStr(new_block.get(), sorted_idxs_, sorted_refs_);
-  // Add the tiled block into the program
-  block_list_.push_back(new_block);
+// Generate the tiled blocks according to the plan
+void BlockGenerator::GeneratePlanBlocks(const std::vector<size_t>& plan) {
+  for (auto& ref : target_->refs) {
+    // We generate a tiled block according to each refinement
+    // Clone a new block first
+    auto new_block = CloneBlock(*target_);
+    // Shrink other refinements
+    for (auto& other : new_block->refs) {
+      if (other.into() != ref.into()) {
+        // Set all zero for the access
+        for (auto& acc : other.mut().access) {
+          acc = Affine(0);
+        }
+      }
+    }
+    // Tile the block according to the plan
+    ApplyTile(new_block.get(), plan, false, false, options_.interleave());
+    new_block->add_tags(FromProto(options_.outer_set()));
+    // Generate the outer plan that splits the accumulation/non-accumulation index
+    std::vector<size_t> outer_plan;
+    for (auto& idx : new_block->idxs) {
+      bool is_acc_idx = acc_idxs_.find(idx.name) != acc_idxs_.end();
+      outer_plan.push_back(is_acc_idx ? idx.range : 1);
+    }
+    ApplyTile(new_block.get(), outer_plan, false, false, false);
+    // Reduce the workgroups of the outer block to speed up testing
+    size_t workgroups = 1;
+    for (auto& idx : new_block->idxs) {
+//      if (workgroups * idx.range <= options_.min_workgroups()) {
+        workgroups *= idx.range;
+//      }
+//      else {
+//        idx.range = options_.min_workgroups() / workgroups + 1;
+//        workgroups *= idx.range;
+//      }
+    }
+    // Reduce the accumulation iterations
+    auto middle = new_block->SubBlock(0);
+    middle->add_tags(FromProto(options_.middle_set()));
+    size_t iterations = 1;
+    for (auto& idx : middle->idxs) {
+//      if (iterations * idx.range <= options_.min_accumulation()) {
+        iterations *= idx.range;
+//      }
+//      else {
+//        idx.range = options_.min_accumulation() / iterations + 1;
+//        iterations *= idx.range;
+//      }
+    }
+    // Reduce the unused index in the inner block
+    auto inner = middle->SubBlock(0);
+    auto flat = ref.FlatAccess();
+    std::set<std::string> used_idxs;
+    for (auto& kvp : flat.getMap()) {
+      if (kvp.first != "") {
+        used_idxs.insert(kvp.first);
+      }
+    }
+    for (auto& idx : inner->idxs) {
+      if (used_idxs.find(idx.name) == used_idxs.end()) {
+        idx.range = 1;
+      }
+    }
+    inner->add_tags(FromProto(options_.inner_set()));
+    // Encode features in the comments
+    new_block->comments = std::to_string(workgroups) + " " + std::to_string(iterations)
+        + " " + FEATURE_HEAD + util::TiledBlockFeaturesStr(inner.get());
+    // Add the tiled block into the program
+    block_list_.push_back(new_block);
+  }
 }
 
 void GenerateTiles(const AliasMap& alias_map, Block* block, const proto::GenerateTilesPass& options) {
@@ -143,7 +206,7 @@ void GenerateTiles(const AliasMap& alias_map, Block* block, const proto::Generat
   std::string train_dir = env::Get("CM_TRAIN_DIR");
   std::string plan_path = train_dir + "/" + options.plan_file();
   auto bg = std::make_shared<BlockGenerator>(target.get(), train_dir, plan_path, options);
-  if (bg->GenerateBlocks()) {
+  if (bg->GenerateAllBlocks()) {
     // Insert the generated tiled blocks into the program
     block->stmts.insert(stmt_it, bg->BlockList().begin(), bg->BlockList().end());
     // Remove the target block from the program

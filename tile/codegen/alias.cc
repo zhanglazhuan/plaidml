@@ -107,11 +107,6 @@ std::ostream& operator<<(std::ostream& os, const AliasInfo& ai) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Extent& extent) {
-  os << "(" << extent.min << ", " << extent.max << ")";
-  return os;
-}
-
 bool CheckOverlap(const std::vector<Extent>& ae, const std::vector<Extent>& be) {
   IVLOG(4, boost::format("  CheckOverlap: a: '%1%', b: '%2%'") % StreamContainer(ae) % StreamContainer(be));
   if (ae.size() != be.size()) {
@@ -300,7 +295,7 @@ void AliasMap::AddConstraintForIndex(stripe::Block* block,         //
   bool overflow = alias_info.extents[idx].max > top_index;
   if (underflow || overflow) {
     IVLOG(3, "AddConstraintForIndex: " << alias_info.base_name << ", " << idx_name);
-    IVLOG(3, "extents = " << alias_info.extents[idx] << ", top_index = " << top_index);
+    IVLOG(3, "extents = " << alias_info.extents[idx].min << " " << alias_info.extents[idx].max << ", top_index = " << top_index);
     if (idx_name != "") {
       std::string global_idx_name = block->unique_idx_name(idx_name);
       block->idxs.emplace_back(Index{global_idx_name, 1, translate(alias_info.access[idx])});
