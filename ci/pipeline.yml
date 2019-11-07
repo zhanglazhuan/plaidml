@@ -3,7 +3,14 @@ steps:
     command:
       - bazelisk shutdown
       - bazelisk clean --expunge
-    parallelism: 4
+    parallelism: 5
+    agents:
+      PLATFORM: macos_x86_64
+
+  - label: ':radioactive_sign: :darwin: :sleuth_or_spy:'
+    command:
+      - bazelisk shutdown
+      - bazelisk clean --expunge
     agents:
       PLATFORM: macos_x86_64
 
