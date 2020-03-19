@@ -48,8 +48,7 @@ def get_line_y(x, y):
 
 def main(
 ):  #TODO:work in progress to generate graphs will clean up after documentation is completed
-    #TODO:incorrect results produced
-    #TODO:write tests once 4Dintegral correctness proof is found
+
     R = 1.0  # radius
     p = 2
 
