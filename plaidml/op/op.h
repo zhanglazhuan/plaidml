@@ -130,6 +130,11 @@ inline edsl::Tensor expand_dims(const edsl::Tensor& I, int axis) {
   return details::op("expand_dims", args).as_tensor();
 }
 
+inline edsl::Tensor fake_quantize(const edsl::Tensor& I) {
+  auto args = edsl::make_tuple(I);
+  return details::op("fake_quantize", args).as_tensor();
+}
+
 inline edsl::Tensor flip(const edsl::Tensor& I, int axis) {
   auto args = edsl::make_tuple(I, axis);
   return details::op("flip", args).as_tensor();

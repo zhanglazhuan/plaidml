@@ -51,6 +51,20 @@ py_library(
     ],
 )
 
+py_binary(
+    name = "execution_test",
+    srcs = [
+        "execution_test.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//plaidml:py",
+        "//plaidml/edsl:py",
+        ":py",
+        "//plaidml/exec:py",
+    ],
+)
+
 plaidml_cc_test(
     name = "cc_test",
     srcs = ["op_test.cc"],

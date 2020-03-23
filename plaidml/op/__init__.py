@@ -109,6 +109,8 @@ def elu(x, alpha=1.0):
 def expand_dims(x, axis=-1):
     return op('expand_dims', [x, axis]).as_tensor()
 
+def fake_quantize(x):
+    return op('fake_quantize', [x]).as_tensor()
 
 def flip(x, axis=None):
     return op('flip', [x, axis]).as_tensor()
@@ -144,7 +146,6 @@ def minimum(x, y):
 
 def scale_gradient(x, scale=-1.0):
     return op('scale_gradient', [x, scale]).as_tensor()
-
 
 def relu(x, alpha=None, max_value=None, threshold=0.):
     return op('relu', [x, alpha, max_value, threshold]).as_tensor()

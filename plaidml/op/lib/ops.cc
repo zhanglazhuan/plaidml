@@ -29,6 +29,7 @@ Value cumsum(const Value&);
 Value dot(const Value&);
 Value elu(const Value&);
 Value expand_dims(const Value&);
+Value fake_quantize(const Value&);
 Value flip(const Value&);
 Value hard_sigmoid(const Value&);
 Value image_resize(const Value&);
@@ -1446,6 +1447,25 @@ Value expand_dims(const Value& value) {
   return Value{O};
 }
 
+Value fake_quantize(const Value& value) {
+  IVLOG(1, "fake_quantize");
+
+  // Read arguments
+  auto args = value.as_tuple();
+  if (args.size() != 1) {
+    throw std::runtime_error(llvm::formatv("PlaidML fake_quantize op expects 1 argument (received {0})", args.size()));
+  }
+  auto I = args[0].as_tensor();
+
+  // Implement just a basic quantize for now to show a path to completion, add arguments/options later
+  auto min_I = min(make_tuple(I, None(), true)).as_tensor();
+  auto max_I = max(make_tuple(I, None(), true)).as_tensor();
+
+  auto O = (I - min_I) * 255 / (max_I - min_I);
+
+  return Value{O};
+}
+
 Value flip(const Value& value) {
   IVLOG(1, "flip");
   // This is numpy-style `flip`; Keras calls it `repeat`
@@ -2733,6 +2753,7 @@ void RegisterOps() {
   registry->Register("dot", dot);
   registry->Register("elu", elu);
   registry->Register("expand_dims", expand_dims);
+  registry->Register("fake_quantize", fake_quantize);
   registry->Register("flip", flip);
   registry->Register("hard_sigmoid", hard_sigmoid);
   registry->Register("image_resize", image_resize);
