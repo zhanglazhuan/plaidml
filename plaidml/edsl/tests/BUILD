@@ -7,7 +7,7 @@ load("//pmlc:lit.bzl", "lit_test")
 
 plaidml_cc_test(
     name = "simple",
-    srcs = ["simple_example.cc"],
+    srcs = ["simple.cc"],
     deps = [
         "//plaidml/edsl",
         "//plaidml/exec",
