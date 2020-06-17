@@ -9,6 +9,7 @@
 
 #include "llvm/Support/FormatVariadic.h"
 
+#include "plaidml/op/lib/fft.h"
 #include "plaidml/op/op.h"
 #include "pmlc/util/logging.h"
 
@@ -2797,6 +2798,7 @@ void RegisterOps() {
   registry->Register("elu", elu);
   registry->Register("expand_dims", expand_dims);
   registry->Register("flip", flip);
+  registry->Register("fft", fft);  // from fft.h
   registry->Register("hard_sigmoid", hard_sigmoid);
   registry->Register("image_resize", image_resize);
   registry->Register("max", max);
