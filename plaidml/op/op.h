@@ -294,6 +294,11 @@ inline edsl::Tensor expand_dims(const edsl::Tensor& I, int axis) {
   return details::op("expand_dims", args).as_tensor();
 }
 
+inline edsl::Tensor fft(const edsl::Tensor& I, int radix, int window) {
+  auto args = edsl::make_tuple(I, radix, window);
+  return details::op("fft", args).as_tensor();
+}
+
 inline edsl::Tensor flip(const edsl::Tensor& I, int axis) {
   auto args = edsl::make_tuple(I, axis);
   return details::op("flip", args).as_tensor();

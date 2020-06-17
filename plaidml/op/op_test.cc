@@ -340,6 +340,14 @@ module {
 )#"));
 }
 
+TEST_F(OpTest, FFT) {
+  auto I = Placeholder(DType::INT64, {256, 2});
+  auto O = op::fft(I, 2, 8);
+  auto program = ProgramBuilder("fft", {O}).compile();
+  IVLOG(1, "program:\n" << program);
+  EXPECT_THAT(program, Eq(R"#(WOOF_)#"));
+}
+
 TEST(Op, HardSigmoid) {
   auto A = Placeholder(DType::FLOAT32, {10, 20}, "A");
   auto program = makeProgram("hard_sigmoid", {op::hard_sigmoid(A, 0.05)});
