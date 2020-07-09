@@ -42,6 +42,7 @@ def run_program(I, I_data, O, benchmark=False):
 
 
 def main():
+    print("Delete this print statement")
     N = int(input("Enter N: "))
     I_np = np.linspace(0, 1, N)
 
