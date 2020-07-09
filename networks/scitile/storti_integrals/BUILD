@@ -15,6 +15,17 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "gpu_op_tests",
+    srcs = ["gpu_op_tests.py",],
+    deps = [
+        ":op",
+        "//plaidml2:py",
+        "//plaidml2/edsl:py",
+        "//plaidml2/exec:py",
+    ],
+)
+
 py_library(
     name="op",
     srcs = ["op.py"],

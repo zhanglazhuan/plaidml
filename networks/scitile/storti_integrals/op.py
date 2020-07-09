@@ -41,6 +41,19 @@ def meshgrid(
     return X, Y, Z, X_data, Y_data, Z_data
 
 
+def meshgrid_1D(
+        n,  # number of grid points along each coord direction
+        minval,  # coordinate bounding values
+        maxval):  # coordinate bounding values
+    coordvals = np.linspace(minval, maxval, n, dtype=np.float32)
+    delta = (maxval - minval) / (n - 1)  # grid spacing
+    X_data = coordvals.reshape(n, 1)
+    Y_data = np.zeros((1, n))
+    X = edsl.Tensor(edsl.LogicalShape(plaidml.DType.FLOAT32, X_data.shape))
+    Y = edsl.Tensor(edsl.LogicalShape(plaidml.DType.FLOAT32, Y_data.shape))
+    return X, Y, X_data, Y_data
+
+
 def meshgrid_4D(
         n,  # number of grid points along each coord direction
         minval,  # coordinate bounding values
@@ -94,6 +107,20 @@ def partial_4D(
         O[x, y, z, w] = F[x, y, z + 1, w] + F_neg[x, y, z - 1, w]
     elif wrt == 'w':
         O[x, y, z, w] = F[x, y, z, w + 1] + F_neg[x, y, z, w - 1]
+    return O / (2.0 * delta)
+
+
+def partial_1D(
+        F,  # F: differentiable function tensor
+        wrt,  # wrt: ('x')
+        delta):  # delta: grid spacing
+    F_neg = -F
+    dims = edsl.TensorDims(2)
+    x, y = edsl.TensorIndexes(2)
+    F.bind_dims(*dims)
+    O = edsl.TensorOutput(*dims)
+    if wrt == 'x':
+        O[x] = F[x + 1, y] + F_neg[x - 1, y]
     return O / (2.0 * delta)
 
 
@@ -190,6 +217,30 @@ def integral_surface_area_4D(
     return result * (delta**4)
 
 
+def diff(
+        n,  # number of grid points along each coord direction
+        minval,  # coordinate bounding values
+        maxval,  # coordinate bounding values
+        eps,  # Threshold for trivial gradient
+        frep,  # function rep
+        exact,  # function rep of exact solution
+        frep_vars,  # function rep variables
+        benchmark=False):  # benchmark: get timing information
+
+    delta = (maxval - minval) / (n - 1)  # grid spacing
+
+    X, Y, X_data, Y_data = meshgrid_1D(n, minval, maxval)
+    F = frep(X, Y, frep_vars)
+
+    print(F)
+
+    O = partial_1D(F, 'x', delta)
+
+    result = run_program_1D(X, Y, X_data, Y_data, O, benchmark)
+
+    return 1
+
+
 def integral_volume(
         n,  # number of grid points along each coord direction
         minval,  # coordinate bounding values
@@ -262,6 +313,34 @@ def run_program(X, Y, Z, X_data, Y_data, Z_data, O, benchmark=False):
         # subsequent runs should not include compile time
         print('running...')
         ITERATIONS = 100
+        elapsed = timeit.timeit(run, number=ITERATIONS)
+        print('runtime:', elapsed / ITERATIONS)
+    else:
+        result = run()
+    return result
+
+
+def run_program_1D(X, Y, X_data, Y_data, O, benchmark=False):
+    program = edsl.Program('1D_integral_program', [O])
+    binder = plaidml_exec.Binder(program)
+    executable = binder.compile()
+
+    def run():
+        binder.input(X).copy_from_ndarray(X_data)
+        binder.input(Y).copy_from_ndarray(Y_data)
+        executable.run()
+        print("Input: ", binder.input(X).as_ndarray())
+        print("Output: ", binder.output(O).as_ndarray())
+        return binder.output(O).as_ndarray()
+
+    if benchmark:
+        # the first run will compile and run
+        print('compiling...')
+        result = run()
+
+        # subsequent runs should not include compile time
+        print('running...')
+        ITERATIONS = 10
         elapsed = timeit.timeit(run, number=ITERATIONS)
         print('runtime:', elapsed / ITERATIONS)
     else:
