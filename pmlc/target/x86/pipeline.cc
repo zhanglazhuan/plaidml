@@ -79,10 +79,14 @@ void addToPipeline(OpPassManager &pm) {
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  pm.addPass(
-      pmlc::dialect::pxa::createXSMMStencilPass(/*numThreads=*/1, heatmapCost));
+  if (pmlc::util::getEnvVar("PLAIDML_XSMM") != "0") {
+    pm.addPass(pmlc::dialect::pxa::createXSMMStencilPass(/*numThreads=*/1,
+                                                         heatmapCost));
+  }
   pm.addPass(createLoopInvariantCodeMotionPass());
-  pm.addPass(createXSMMLoweringPass());
+  if (pmlc::util::getEnvVar("PLAIDML_XSMM") != "0") {
+    pm.addPass(createXSMMLoweringPass());
+  }
 
   // FIXME: these passes cause test failures (correctness or otherwise)
   // pm.addPass(pmlc::dialect::pxa::createFusionPass());
