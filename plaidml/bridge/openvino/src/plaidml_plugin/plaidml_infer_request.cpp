@@ -4,6 +4,8 @@
 
 #include "plaidml_infer_request.hpp"
 
+#include <vector>
+
 #include "ie_layers.h"  // NOLINT[build/include_subdir]
 
 #include "pmlc/util/logging.h"
@@ -87,7 +89,22 @@ void PlaidMLInferRequest::SyncInput() {
   for (const auto& kvp : _networkInputs) {
     const auto& name = kvp.first;
     const auto& tensor = tensorIOMap_.at(name);
-    binder_.input(tensor).copy_from(_inputs[name]->buffer());
+    if (true) {  // TODO: just delete this and use the else, this is a hack
+      auto view = binder_.input(tensor).mmap_discard();
+      size_t view_size = view.size();
+      std::vector<uint8_t> direct_u8_vec(view_size);
+      memcpy(direct_u8_vec.data(), _inputs[name]->buffer(), direct_u8_vec.size() * sizeof(uint8_t));
+      if (VLOG_IS_ON(1)) {
+        // For pretty-printing (if you print uint8_t directly it's interpreted as a char)
+        std::vector<unsigned short> direct_u8_numeric_vec(direct_u8_vec.begin(),  // NOLINT(runtime/int)
+                                                          direct_u8_vec.end());
+        IVLOG(1, "Syncing input '" << name << "' which has buffer (interpreted as u8 directly) of "
+                                   << direct_u8_numeric_vec);
+      }
+      memcpy(view.data(), direct_u8_vec.data(), view_size);
+    } else {
+      binder_.input(tensor).copy_from(_inputs[name]->buffer());
+    }
   }
 }
 
@@ -95,7 +112,17 @@ void PlaidMLInferRequest::SyncOutput() {
   for (const auto& kvp : _networkOutputs) {
     const auto& name = kvp.first;
     const auto& tensor = tensorIOMap_.at(name);
-    binder_.output(tensor).copy_into(_outputs[name]->buffer());
+    if (true) {  // TODO: just delete this and use the else, this is a hack
+      auto view = binder_.output(tensor).mmap_current();
+      size_t view_size = view.size();
+      std::vector<uint8_t> raw_vec(view_size);  // TODO: Set to the specific type I'm using in tests
+      memcpy(raw_vec.data(), view.data(), view.size());
+      std::vector<float> float_vec(raw_vec.begin(), raw_vec.end());
+      IVLOG(1, "Syncing output '" << name << "' which has float buffer " << float_vec);
+      memcpy(_outputs[name]->buffer(), float_vec.data(), float_vec.size() * sizeof(float));
+    } else {
+      binder_.output(tensor).copy_into(_outputs[name]->buffer());
+    }
   }
 }
 
