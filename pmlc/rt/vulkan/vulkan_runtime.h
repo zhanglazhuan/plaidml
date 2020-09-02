@@ -165,7 +165,7 @@ public:
   mlir::LogicalResult createLaunchKernelAction(uint8_t *shader, uint32_t size,
                                                const char *entryPoint,
                                                NumWorkGroups numWorkGroups);
-  mlir::LogicalResult setLaunchKernelAction();
+  mlir::LogicalResult setLaunchKernelAction(uint32_t subgroupSize);
   void addLaunchActionToSchedule();
   mlir::LogicalResult createMemoryTransferAction(uint64_t src_index,
                                                  uint64_t src_binding,
@@ -193,7 +193,7 @@ private:
   void initDescriptorSetLayoutBindingMap();
   mlir::LogicalResult createDescriptorSetLayout();
   mlir::LogicalResult createPipelineLayout();
-  mlir::LogicalResult createComputePipeline();
+  mlir::LogicalResult createComputePipeline(uint32_t subgroupSize);
   mlir::LogicalResult createDescriptorPool();
   mlir::LogicalResult allocateDescriptorSets();
   mlir::LogicalResult setWriteDescriptors();
@@ -227,6 +227,7 @@ private:
   // Vulkan objects.
   //===--------------------------------------------------------------------===//
   VkInstance instance;
+  VkPhysicalDevice physicalDevice;
   VkDevice device;
   VkQueue queue;
   VkCommandPool commandPool;

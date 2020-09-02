@@ -57,8 +57,8 @@ public:
     vulkanRuntime.setResourceData(setIndex, bindIndex, memBuffer);
   }
 
-  void setLaunchKernelAction() {
-    if (failed(vulkanRuntime.setLaunchKernelAction())) {
+  void setLaunchKernelAction(uint32_t subgroupSize) {
+    if (failed(vulkanRuntime.setLaunchKernelAction(subgroupSize))) {
       llvm::errs() << "runOnVulkan failed";
     }
   }
@@ -114,9 +114,10 @@ void createVulkanMemoryTransferAction(void *vkRuntimeManager,
                                    dst_binding);
 }
 
-void setVulkanLaunchKernelAction(void *vkRuntimeManager) {
+void setVulkanLaunchKernelAction(void *vkRuntimeManager,
+                                 uint32_t subgroupSize) {
   reinterpret_cast<VulkanRuntimeManager *>(vkRuntimeManager)
-      ->setLaunchKernelAction();
+      ->setLaunchKernelAction(subgroupSize);
 }
 
 void addVulkanLaunchActionToSchedule(void *vkRuntimeManager) {

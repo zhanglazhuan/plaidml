@@ -14,6 +14,8 @@
 #include "pmlc/rt/vulkan/vulkan_runtime.h"
 
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "pmlc/util/logging.h"
@@ -275,7 +277,22 @@ LogicalResult VulkanRuntime::createMemoryTransferAction(uint64_t src_index,
   return success();
 }
 
-LogicalResult VulkanRuntime::setLaunchKernelAction() {
+bool isExtensionSupported(VkPhysicalDevice device,
+                          const std::string &extension_name) {
+  uint32_t count;
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &count,
+                                       nullptr); // get number of extensions
+  std::vector<VkExtensionProperties> extensions(count);
+  vkEnumerateDeviceExtensionProperties(device, nullptr, &count,
+                                       extensions.data()); // populate buffer
+  std::set<std::string> extensionList;
+  for (auto &extension : extensions) {
+    extensionList.insert(extension.extensionName);
+  }
+  return extensionList.find(extension_name) != extensionList.end();
+}
+
+LogicalResult VulkanRuntime::setLaunchKernelAction(uint32_t subgroupSize) {
   // Create logical device, shader module and memory buffers.
   if (failed(checkResourceData()) || failed(createMemoryBuffers()) ||
       failed(createShaderModule())) {
@@ -288,8 +305,9 @@ LogicalResult VulkanRuntime::setLaunchKernelAction() {
   initDescriptorSetLayoutBindingMap();
   if (failed(createDescriptorSetLayout()) || failed(createPipelineLayout()) ||
       // Each descriptor set must be allocated from a descriptor pool.
-      failed(createComputePipeline()) || failed(createDescriptorPool()) ||
-      failed(allocateDescriptorSets()) || failed(setWriteDescriptors())) {
+      failed(createComputePipeline(subgroupSize)) ||
+      failed(createDescriptorPool()) || failed(allocateDescriptorSets()) ||
+      failed(setWriteDescriptors())) {
     return failure();
   }
 
@@ -365,10 +383,25 @@ LogicalResult VulkanRuntime::createDevice() {
                          "physicalDeviceCount");
 
   // TODO(denis0x0D): find the best device.
-  const auto &physicalDevice = physicalDevices.front();
+  physicalDevice = physicalDevices.back();
   VkPhysicalDeviceProperties props;
   vkGetPhysicalDeviceProperties(physicalDevice, &props);
   IVLOG(1, "Choosing first available vulkan device: " << props.deviceName);
+
+  VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroupProperties;
+  subgroupProperties.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+  subgroupProperties.pNext = NULL;
+
+  VkPhysicalDeviceProperties2 physicalDeviceProperties;
+  physicalDeviceProperties.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+  if (isExtensionSupported(physicalDevice, "VK_EXT_subgroup_size_control"))
+    physicalDeviceProperties.pNext = &subgroupProperties;
+  else
+    physicalDeviceProperties.pNext = NULL;
+
+  vkGetPhysicalDeviceProperties2(physicalDevice, &physicalDeviceProperties);
 
   getBestComputeQueue(physicalDevice);
 
@@ -700,15 +733,24 @@ LogicalResult VulkanRuntime::createPipelineLayout() {
   return success();
 }
 
-LogicalResult VulkanRuntime::createComputePipeline() {
+LogicalResult VulkanRuntime::createComputePipeline(uint32_t subgroupSize) {
   if (!curr) {
     llvm::errs() << "createComputePipeline: curr is nullptr!";
     return failure();
   }
 
+  VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT subgroupSizeInfo;
+  subgroupSizeInfo.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+  subgroupSizeInfo.requiredSubgroupSize = subgroupSize;
+  subgroupSizeInfo.pNext = NULL;
+
   VkPipelineShaderStageCreateInfo stageInfo = {};
   stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  stageInfo.pNext = nullptr;
+  if (isExtensionSupported(physicalDevice, "VK_EXT_subgroup_size_control"))
+    stageInfo.pNext = &subgroupSizeInfo;
+  else
+    stageInfo.pNext = NULL;
   stageInfo.flags = 0;
   stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
   stageInfo.module = curr->shaderModule;
