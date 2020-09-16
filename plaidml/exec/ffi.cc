@@ -10,25 +10,25 @@
 #include <utility>
 #include <vector>
 
-#include "llvm/Support/FormatVariadic.h"
-
 #include "plaidml/core/internal.h"
-#include "pmlc/compiler/executable.h"
+#include "pmlc/rt/device_id.h"
+#include "pmlc/rt/executable.h"
+#include "pmlc/rt/runtime_registry.h"
 #include "pmlc/util/env.h"
 #include "pmlc/util/logging.h"
 
 using plaidml::core::ffi_wrap;
 using plaidml::core::ffi_wrap_void;
-using pmlc::compiler::EngineKind;
-using pmlc::compiler::Executable;
 using pmlc::compiler::ProgramArgument;
+using pmlc::rt::Device;
+using pmlc::rt::EngineKind;
+using pmlc::rt::Executable;
+using pmlc::rt::getDeviceIDs;
 using pmlc::util::Buffer;
 using pmlc::util::BufferPtr;
 using namespace mlir;  // NOLINT[build/namespaces]
 
 namespace {
-
-const char* kCpuDevice = "llvm_cpu.0";
 
 std::vector<ProgramArgument> BindProgramArguments(  //
     plaidml_program* program,                       //
@@ -52,7 +52,7 @@ std::vector<ProgramArgument> BindProgramArguments(  //
       if (it != input_bindings.end()) {
         arg.buffer = it->second;
       }
-      IVLOG(1, " Input[" << i << "]: " << arg.buffer);
+      IVLOG(2, " Input[" << i << "]: " << arg.buffer);
       if (!arg.buffer) {
         throw std::runtime_error("Unbound input");
       }
@@ -61,7 +61,7 @@ std::vector<ProgramArgument> BindProgramArguments(  //
       if (it != output_bindings.end()) {
         arg.buffer = it->second;
       }
-      IVLOG(1, "Output[" << i << "]: " << arg.buffer);
+      IVLOG(2, "Output[" << i << "]: " << arg.buffer);
       if (!arg.buffer) {
         throw std::runtime_error("Unbound output");
       }
@@ -83,31 +83,25 @@ void plaidml_exec_init(  //
     plaidml_error* err) {
   ffi_wrap_void(err, [&] {  //
     IVLOG(1, "plaidml_exec_init");
+    pmlc::rt::initRuntimes();
   });
 }
 
 plaidml_strings* plaidml_devices_get(  //
     plaidml_error* err) {
-  return ffi_wrap<plaidml_strings*>(err, nullptr, [&] {
-    std::vector<std::string> devices{kCpuDevice};
-    auto strs = new plaidml_string*[devices.size()];
-    for (size_t i = 0; i < devices.size(); i++) {
-      strs[i] = new plaidml_string{devices[i]};
-    }
-    return new plaidml_strings{devices.size(), strs};
-  });
+  return ffi_wrap<plaidml_strings*>(err, nullptr, [&] { return plaidml::core::toFFI(getDeviceIDs()); });
 }
 
 plaidml_executable* plaidml_jit(  //
     plaidml_error* err,           //
     plaidml_program* program,     //
-    const char* device,           //
+    const char* deviceID,         //
     size_t ninputs,               //
     plaidml_binding** inputs,     //
     size_t noutputs,              //
     plaidml_binding** outputs) {
   return ffi_wrap<plaidml_executable*>(err, nullptr, [&] {
-    IVLOG(1, "JITing for device: " << device);
+    IVLOG(1, "JITing for device: " << deviceID);
     auto args = BindProgramArguments(program, ninputs, inputs, noutputs, outputs);
     auto exec = std::make_unique<plaidml_executable>();
     std::vector<void*> bufptrs(args.size());
@@ -122,7 +116,7 @@ plaidml_executable* plaidml_jit(  //
     } else if (jit == "MCJIT") {
       kind = EngineKind::MCJIT;
     }
-    exec->exec = std::make_unique<Executable>(program->program, bufptrs, kind);
+    exec->exec = Executable::fromProgram(program->program, deviceID, bufptrs, kind);
     return exec.release();
   });
 }

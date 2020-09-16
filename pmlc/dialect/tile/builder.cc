@@ -578,7 +578,7 @@ TileBuilder::MakeProgram(StringRef name, const ProgramMutations &mutations,
   if (name.empty()) {
     name = "noname";
   }
-  IVLOG(1, "TileBuilder::MakeProgram> " << name.str());
+  IVLOG(2, "TileBuilder::MakeProgram> " << name.str());
   IVLOG(6, "\n" << mlir::debugString(impl->module));
   SetVector<Value> outputs;
   for (auto output : mutations.outputs) {
@@ -691,7 +691,7 @@ TileBuilder::MakeProgram(StringRef name, const ProgramMutations &mutations,
   }
   // Do some optimization passes
   mlir::PassManager pm(getContext());
-  if (VLOG_IS_ON(1)) {
+  if (VLOG_IS_ON(2)) {
     pm.enableStatistics();
     pm.enableTiming();
     auto shouldPrintBeforePass = [](auto pass, auto op) { return false; };
@@ -709,7 +709,7 @@ TileBuilder::MakeProgram(StringRef name, const ProgramMutations &mutations,
   IVLOG(2, "Running tile builder passes");
   auto result = pm.run(module);
   if (failed(result)) {
-    IVLOG(1, "\n" << mlir::debugString(module));
+    IVLOG(2, "\n" << mlir::debugString(module));
     throw std::runtime_error("Optimization passes failure");
   }
   IVLOG(2, "\n" << returnOp.getNumOperands());

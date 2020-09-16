@@ -6,12 +6,11 @@ package(default_visibility = ["//visibility:public"])
 
 plaidml_cc_library(
     name = "gtest_main",
-    testonly = True,
     srcs = ["gtest_main.cc"],
     deps = [
         "//pmlc/util",
+        "@com_google_googletest//:gtest",
         "@easylogging",
         "@gflags",
-        "@gmock//:gtest",
     ],
 )

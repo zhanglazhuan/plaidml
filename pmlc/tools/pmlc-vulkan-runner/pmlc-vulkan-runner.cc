@@ -28,14 +28,15 @@
 #include "llvm/Support/TargetSelect.h"
 
 #include "pmlc/all_dialects.h"
-#include "pmlc/compiler/executable.h"
 #include "pmlc/compiler/program.h"
 #include "pmlc/conversion/gpu/lowering.h"
+#include "pmlc/rt/executable.h"
+#include "pmlc/rt/runtime_registry.h"
 #include "pmlc/util/logging.h"
 
 using namespace mlir; // NOLINT[build/namespaces]
-using pmlc::compiler::Executable;
 using pmlc::compiler::Program;
+using pmlc::rt::Executable;
 
 static LogicalResult runMLIRPasses(ModuleOp module) {
   PassManager passManager(module.getContext());
@@ -68,6 +69,10 @@ struct Options {
   llvm::cl::opt<std::string> mainFuncName{
       "e", llvm::cl::desc("The function to be called"),
       llvm::cl::value_desc("<function name>"), llvm::cl::init("main")};
+
+  llvm::cl::opt<std::string> optDeviceID{
+      "device", llvm::cl::desc("The device to use"),
+      llvm::cl::value_desc("<device_id>"), llvm::cl::init("vulkan.0")};
 };
 } // namespace
 
@@ -90,8 +95,9 @@ int JitRunnerMain(int argc, char **argv) {
 
   runMLIRPasses(*program->module);
 
-  Executable executable(program, ArrayRef<void *>{});
-  executable.invoke();
+  auto executable = Executable::fromProgram(
+      program, options.optDeviceID.getValue(), ArrayRef<void *>{});
+  executable->invoke();
 
   return EXIT_SUCCESS;
 }
@@ -114,6 +120,7 @@ int main(int argc, char **argv) {
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
   mlir::initializeLLVMPasses();
+  pmlc::rt::initRuntimes();
 
   return JitRunnerMain(argc, argv);
 }

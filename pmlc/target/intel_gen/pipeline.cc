@@ -18,7 +18,6 @@
 #include "mlir/Transforms/Passes.h"
 
 #include "pmlc/compiler/registry.h"
-
 #include "pmlc/conversion/gpu/lowering.h"
 #include "pmlc/conversion/gpu_to_spirv/passes.h"
 #include "pmlc/conversion/pxa_to_affine/passes.h"
@@ -30,12 +29,34 @@
 #include "pmlc/dialect/tile/transforms/passes.h"
 #include "pmlc/target/intel_gen/pass_detail.h"
 #include "pmlc/target/intel_gen/passes.h"
+#include "pmlc/target/x86/passes.h"
 
 using namespace mlir; // NOLINT[build/namespaces]
 
 namespace pmlc::target::intel_gen {
 
+namespace pxa = pmlc::dialect::pxa;
+
 namespace {
+
+struct LowerPXAToAffinePass
+    : public ConvertPXAToAffineBase<LowerPXAToAffinePass> {
+  void runOnOperation() final {
+    auto &ctx = getContext();
+    conversion::pxa_to_affine::PXAToAffineConversionTarget target(ctx);
+
+    OwningRewritePatternList patterns;
+    x86::populatePXAPrngToAffineConversionPatterns(patterns, &ctx);
+    conversion::pxa_to_affine::populatePXAToAffineConversionPatterns(patterns,
+                                                                     &ctx);
+
+    if (failed(applyPartialConversion(getOperation(), target, patterns,
+                                      nullptr))) {
+      getOperation().emitError("Error lowering pxa -> affine\n");
+      signalPassFailure();
+    }
+  }
+};
 
 struct ConvertStandardToLLVMPass
     : public ConvertStandardToLLVMBase<ConvertStandardToLLVMPass> {
@@ -91,6 +112,10 @@ std::unique_ptr<Pass> createParallelLoopToGpuPass() {
   return std::make_unique<ParallelLoopToGpuPass>();
 }
 
+std::unique_ptr<Pass> createLowerPXAToAffinePass() {
+  return std::make_unique<LowerPXAToAffinePass>();
+}
+
 void pipelineBuilder(OpPassManager &pm) {
   pm.getContext()->getOrLoadDialect<spirv::SPIRVDialect>();
 
@@ -106,20 +131,21 @@ void pipelineBuilder(OpPassManager &pm) {
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
-  // Move accumulation indexes into an inner loop
-  pm.addPass(pmlc::dialect::pxa::createTileAccumulatePass());
+  // Do subgroup or accumulation
+  pm.addPass(pmlc::dialect::pxa::createSubgroupsPass());
+  // pm.addPass(pmlc::dialect::pxa::createTileAccumulatePass());
   pm.addPass(pmlc::dialect::pxa::createAffineNormalizePass(/*promote=*/false));
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
   // Assign GPU blocks + threads to outermost loop
-  pm.addPass(pmlc::dialect::pxa::createGPUThreadPass(/*maxThreads=*/128));
-  pm.addPass(pmlc::dialect::pxa::createAffineNormalizePass(/*promote=*/false));
+  pm.addPass(pmlc::dialect::pxa::createGPUThreadPass(/*maxThreads=*/64));
+  pm.addPass(pmlc::dialect::pxa::createAffineNormalizePass());
   pm.addPass(createCanonicalizerPass());
   pm.addPass(createCSEPass());
 
   // Lower out of PXA memory semantics
-  pm.addPass(conversion::pxa_to_affine::createLowerPXAToAffinePass());
+  pm.addPass(createLowerPXAToAffinePass());
 
   // Pack dims
   pm.addPass(createAffineIndexPackPass());
@@ -133,6 +159,10 @@ void pipelineBuilder(OpPassManager &pm) {
 
   // Fix booleans
   pm.addPass(dialect::stdx::createI1StorageToI32Pass());
+
+  // Devectorize
+  pm.addPass(createSubgroupBroadcastPass());
+  pm.addPass(createCSEPass());
 
   // Lower mapped scf.parallel's to GPU
   pm.addPass(createParallelLoopToGpuPass());
