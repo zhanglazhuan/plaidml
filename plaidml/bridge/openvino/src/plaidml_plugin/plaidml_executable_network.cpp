@@ -44,7 +44,7 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
   IVLOG(2, "Layers:");
   for (auto& node : fcn->get_ordered_ops()) {
     IVLOG(2, "  " << node->description() << ": " << node->get_name() << "... " << node->get_friendly_name());
-    if (ngraph::op::is_constant(node)) {
+    if (node->is_constant()) {
       IE_ASSERT(node->get_output_size() == 1);
       IE_ASSERT(node->description() == "Constant");
       auto type = to_plaidml(node->get_element_type());
@@ -59,7 +59,7 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       IVLOG(3, "    Adding constant named '" << node->get_output_tensor_name(0) << "'");
       tensorMap_[node->get_output_tensor_name(0)] = tensor;
       continue;
-    } else if (ngraph::op::is_parameter(node)) {
+    } else if (node->is_parameter()) {
       IE_ASSERT(node->get_output_size() == 1);
       std::vector<int64_t> dims{node->get_shape().begin(), node->get_shape().end()};
       auto type = to_plaidml(node->get_element_type());
@@ -69,7 +69,7 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       IVLOG(3, "    Also, aliasing " << node->get_output_tensor_name(0) << " as " << node->get_friendly_name());
       tensorIOMap_[node->get_friendly_name()] = tensor;
       continue;
-    } else if (ngraph::op::is_output(node)) {
+    } else if (node->is_constant()) {
       const auto& src_output = node->inputs()[0].get_source_output();
       const auto& friendly_name = src_output.get_node()->get_friendly_name();
       const auto& original_name = src_output.get_node()->get_output_tensor_name(src_output.get_index());

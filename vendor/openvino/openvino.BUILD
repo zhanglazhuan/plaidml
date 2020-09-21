@@ -324,15 +324,16 @@ cc_library(
         "inference-engine/src/inference_engine/precision_utils.cpp",
         "inference-engine/src/inference_engine/system_allocator.cpp",
         "inference-engine/src/inference_engine/xml_parse_utils.cpp",
-        # "inference-engine/src/inference_engine/*.cpp",
+        "inference-engine/src/inference_engine/*.cpp",
     ]),
     hdrs = glob([
+        "inference-engine/include/*.h",
         "inference-engine/src/readers/ir_reader/*.hpp",
         # TODO
         "inference-engine/include/details/ie_exception.hpp",
     ]),
     includes = [
-        # "inference-engine/src/inference_engine",
+        #"inference-engine/src/inference_engine",
         "inference-engine/src/readers/ir_reader",  # TODO: Why does this work?
         "inference-engine/src/readers/reader_api",  # TODO: Why does this work?
     ],
@@ -370,7 +371,8 @@ cc_library(
         ]),
     }),
     hdrs = glob([
-        # "inference-engine/src/readers/ir_reader/ie_ir_version.hpp",  # TODO: Ok to remove?
+        "inference-engine/include/*.h",
+        "inference-engine/src/readers/ir_reader/ie_ir_version.hpp",  # TODO: Ok to remove?
     ]),
     copts = ["-w"],
     includes = [
@@ -443,9 +445,11 @@ cc_library(
         [
             "ngraph/src/ngraph/*.cpp",
             "ngraph/src/ngraph/*.hpp",
+            "ngraph/src/ngraph/autodiff/*.cpp",
             "ngraph/src/ngraph/builder/*.cpp",
             "ngraph/src/ngraph/descriptor/**/*.cpp",
             "ngraph/src/ngraph/distributed/*.cpp",
+            "ngraph/src/ngraph/node/*.cpp",
             "ngraph/src/ngraph/op/*.cpp",
             "ngraph/src/ngraph/op/**/*.cpp",
             "ngraph/src/ngraph/opsets/*.cpp",
@@ -465,11 +469,13 @@ cc_library(
     ),
     hdrs = glob(
         [
-            "ngraph/core/include/ngraph/*.hpp",
+            #"ngraph/core/include/ngraph/*.hpp",
             "ngraph/src/ngraph/*.hpp",
+            "ngraph/src/ngraph/autodiff/*.hpp",
             "ngraph/src/ngraph/builder/*.hpp",
             "ngraph/src/ngraph/descriptor/**/*.hpp",
             "ngraph/src/ngraph/distributed/*.hpp",
+            "ngraph/src/ngraph/node/*.hpp",
             "ngraph/src/ngraph/op/*.hpp",
             "ngraph/src/ngraph/op/**/*.hpp",
             "ngraph/src/ngraph/opsets/*.hpp",
