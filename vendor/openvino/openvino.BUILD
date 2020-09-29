@@ -402,9 +402,6 @@ cc_library(
             "-ldl",
         ],
     }),
-    local_defines = [
-        "ENABLE_IR_READER",
-    ],
     tags = TAGS,
     deps = [
         ":inc",
