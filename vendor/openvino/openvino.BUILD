@@ -9,6 +9,124 @@ TAGS = [
 ]
 
 cc_library(
+    name = "benchmark_app",
+    srcs = glob([
+        "inference-engine/samples/benchmark_app/**/*.hpp",
+        "inference-engine/samples/common/**/*.cpp",  # TODO
+        "inference-engine/samples/common/**/*.hpp",  # TODO
+        "inference-engine/samples/benchmark_app/**/*.cpp",
+    ]),
+    includes = [
+        "inference-engine/samples/common",
+        "inference-engine/samples/common/format_reader",
+    ],
+    linkstatic = 0,
+    deps = [
+        ":inference_engine",
+        ":ngraph",
+        "@gflags",
+    ],
+)
+
+cc_library(
+    name = "testing",
+    srcs = glob([
+        "inference-engine/tests/helpers/*common*cpp",
+    ]),
+    hdrs = glob([
+        "inference-engine/tests/helpers/*common*hpp",
+    ]),
+    defines = [
+        "DATA_PATH=NULL",
+    ],
+    includes = [
+        "inference-engine/tests/helpers",
+    ],
+    deps = [
+        ":inference_engine",
+    ],
+)
+
+cc_library(
+    name = "smoke_tests",
+    srcs = [
+        "inference-engine/tests/unit/engines/mkldnn/dump_test.cpp",
+    ],
+    hdrs = [
+        "inference-engine/tests/unit/engines/mkldnn/graph/test_graph.hpp",
+    ],
+    data = [":plugins"],
+    includes = [
+        "inference-engine/tests/unit/engines/mkldnn/graph",
+    ],
+    deps = [
+        ":mkldnn_plugin",
+        ":testing",
+        "@gmock//:gtest",
+    ],
+)
+
+genrule(
+    name = "plugins",
+    outs = ["plugins.xml"],
+    cmd = "echo \"<ie><plugins><plugin name=\\\"CPU\\\" location=\\\"./libmkldnn.so\\\"></plugin></plugins></ie>\" > $@",
+)
+
+template_rule(
+    name = "mkldnn_version",
+    src = "inference-engine/thirdparty/mkl-dnn/include/mkldnn_version.h.in",
+    out = "inference-engine/thirdparty/mkl-dnn/include/mkldnn_version.h",
+    substitutions = {
+        "@MKLDNN_VERSION_MAJOR@": "1",
+        "@MKLDNN_VERSION_MINOR@": "1",
+        "@MKLDNN_VERSION_PATCH@": "1",
+        "@MKLDNN_VERSION_HASH@": "afd",
+    },
+)
+
+cc_library(
+    name = "mkldnn_plugin",
+    srcs = glob(
+        [
+            "inference-engine/thirdparty/mkl-dnn/src/**/*pp",
+            "inference-engine/src/mkldnn_plugin/**/*pp",
+        ],
+        exclude = [
+            "inference-engine/src/mkldnn_plugin/mkldnn/os/**/*.cpp",
+            "inference-engine/src/mkldnn_plugin/nodes/ext_convert.cpp",
+        ],
+    ) + select({
+        "@bazel_tools//src/conditions:darwin_x86_64": [],
+        "@bazel_tools//src/conditions:windows": glob([
+            "inference-engine/src/mkldnn_plugin/mkldnn/os/win/*.cpp",
+        ]),
+        "//conditions:default": glob([
+            "inference-engine/src/mkldnn_plugin/mkldnn/os/lin/*.cpp",
+        ]),
+    }),
+    hdrs = glob([
+        "inference-engine/thirdparty/mkl-dnn/include/*",
+        "inference-engine/thirdparty/mkl-dnn/src/common/*.hpp",
+        "inference-engine/thirdparty/mkl-dnn/src/cpu/**/*.h*",
+        "inference-engine/thirdparty/mkl-dnn/src/*.hpp",
+    ]) + [":mkldnn_version"],
+    includes = [
+        "inference-engine/src/mkldnn_plugin",
+        "inference-engine/src/mkldnn_plugin/mkldnn",
+        "inference-engine/thirdparty/mkl-dnn/include",
+        "inference-engine/thirdparty/mkl-dnn/src",
+        "inference-engine/thirdparty/mkl-dnn/src/common",
+        "inference-engine/thirdparty/mkl-dnn/src/cpu",
+    ],
+    local_defines = [
+        "COMPILED_CPU_MKLDNN_QUANTIZE_NODE",
+        "COMPILED_CPU_MKLDNN_ACTIVATION_NODE",
+    ],
+    deps = [":inference_engine"],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "inc",
     hdrs = glob([
         "inference-engine/include/**/*.h",
@@ -197,6 +315,57 @@ cc_library(
         ":inc",
         ":ngraph",
     ],
+)
+
+# TODO
+cc_library(
+    name = "ie_reader",
+    srcs = glob([
+        "inference-engine/src/readers/ir_reader/*.cpp",
+        # TODO
+        "inference-engine/src/inference_engine/blob_factory.cpp",
+        "inference-engine/src/inference_engine/cnn_network_ngraph_impl.cpp",
+        "inference-engine/src/inference_engine/generic_ie.cpp",
+        "inference-engine/src/inference_engine/ie_blob_common.cpp",
+        "inference-engine/src/inference_engine/ie_data.cpp",
+        "inference-engine/src/inference_engine/ie_layouts.cpp",
+        "inference-engine/src/inference_engine/ie_memcpy.cpp",
+        "inference-engine/src/inference_engine/ie_rtti.cpp",
+        "inference-engine/src/inference_engine/ie_unicode.cpp",
+        "inference-engine/src/inference_engine/network_serializer.cpp",
+        "inference-engine/src/inference_engine/precision_utils.cpp",
+        "inference-engine/src/inference_engine/system_allocator.cpp",
+        "inference-engine/src/inference_engine/xml_parse_utils.cpp",
+        # "inference-engine/src/inference_engine/*.cpp",
+        # TODO: New stuff from here
+        "inference-engine/src/inference_engine/shape_infer/ie_built_in_holder.cpp",
+    ]),
+    hdrs = glob([
+        "inference-engine/src/readers/ir_reader/*.hpp",
+        # TODO
+        "inference-engine/include/details/ie_exception.hpp",
+    ]),
+    includes = [
+        # "inference-engine/src/inference_engine",
+        "inference-engine/src/readers/ir_reader",  # TODO: Why does this work?
+        "inference-engine/src/readers/reader_api",  # TODO: Why does this work?
+    ],
+    local_defines = [
+        "IR_READER_V10",
+    ],
+    deps = [
+        # ":inference_engine",
+        ":inc",
+        ":legacy_api",
+        ":low_precision_transformations",
+        ":ngraph",
+        ":plugin_api",
+        ":preprocessing",
+        ":pugixml",
+        ":transformations",
+        "@tbb",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
