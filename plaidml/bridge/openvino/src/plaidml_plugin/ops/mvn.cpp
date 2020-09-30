@@ -15,7 +15,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("mvn", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset2::MVN*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset2::MVN>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
   return edsl::make_tuple(op::mvn(I)

@@ -18,7 +18,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("spacetodepth", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::SpaceToDepth*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::SpaceToDepth>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
   IE_ASSERT(I.rank() >= 3);

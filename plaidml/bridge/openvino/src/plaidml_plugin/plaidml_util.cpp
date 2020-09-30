@@ -14,8 +14,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 ngraph::AxisSet get_axis_set_from_constant_operand(size_t operand_idx, ngraph::Node* layer) {
-  auto axis_ngraph_op =
-      std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(operand_idx).get_node_shared_ptr());
+  auto* axis_ngraph_op = ngraph::as_type<ngraph::op::Constant>(layer->get_input_node_ptr(operand_idx));
   if (axis_ngraph_op) {
     return axis_ngraph_op->get_axis_set_val();
   } else {
@@ -24,8 +23,7 @@ ngraph::AxisSet get_axis_set_from_constant_operand(size_t operand_idx, ngraph::N
 }
 
 ngraph::AxisVector get_axis_vector_from_constant_operand(size_t operand_idx, ngraph::Node* layer) {
-  auto axis_ngraph_op =
-      std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(operand_idx).get_node_shared_ptr());
+  auto* axis_ngraph_op = ngraph::as_type<ngraph::op::Constant>(layer->get_input_node_ptr(operand_idx));
   if (axis_ngraph_op) {
     return axis_ngraph_op->get_axis_vector_val();
   } else {
@@ -100,8 +98,7 @@ plaidml::op::PadMode to_plaidml(const ngraph::op::PadMode& ng_type) {
 }
 
 ngraph::Shape get_shape_from_constant_operand(size_t operand_idx, ngraph::Node* layer) {
-  auto shape_ngraph_op =
-      std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(operand_idx).get_node_shared_ptr());
+  auto* shape_ngraph_op = ngraph::as_type<ngraph::op::Constant>(layer->get_input_node_ptr(operand_idx));
   if (shape_ngraph_op) {
     return shape_ngraph_op->get_shape_val();
   } else {
@@ -110,8 +107,7 @@ ngraph::Shape get_shape_from_constant_operand(size_t operand_idx, ngraph::Node* 
 }
 
 ngraph::Coordinate get_coords_from_constant_operand(size_t operand_idx, ngraph::Node* layer) {
-  auto coord_ngraph_op =
-      std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(operand_idx).get_node_shared_ptr());
+  auto* coord_ngraph_op = ngraph::as_type<ngraph::op::Constant>(layer->get_input_node_ptr(operand_idx));
   if (coord_ngraph_op) {
     return coord_ngraph_op->get_coordinate_val();
   } else {

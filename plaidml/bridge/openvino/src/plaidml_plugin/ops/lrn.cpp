@@ -15,7 +15,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("lrn", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::LRN*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::LRN>(ctx.layer);
   auto I = ctx.operands.at(0);
   // Note: The reference implementation and documentation do not appear to agree on whether alpha gets divided by the
   // window size; this matches the reference implementation.

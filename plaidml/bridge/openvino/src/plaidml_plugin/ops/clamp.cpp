@@ -9,18 +9,18 @@
 
 #include "plaidml/op/op.h"
 
-using namespace plaidml; // NOLINT[build/namespaces]
-using namespace InferenceEngine; // NOLINT[build/namespaces]
+using plaidml::edsl::make_tuple;
+using plaidml::edsl::Tensor;
 
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("clamp", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::Clamp*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::Clamp>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
-  edsl::Tensor min(layer->get_min());
-  edsl::Tensor max(layer->get_max());
-  return edsl::make_tuple(op::clip(I, min, max));
+  Tensor min(layer->get_min());
+  Tensor max(layer->get_max());
+  return make_tuple(plaidml::op::clip(I, min, max));
 });
 
 }  // namespace PlaidMLPlugin

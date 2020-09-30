@@ -15,7 +15,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("fakequantize", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::FakeQuantize*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::FakeQuantize>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 5);
   auto X = ctx.operands.at(0);
   auto in_lo = ctx.operands.at(1);
