@@ -21,7 +21,7 @@ static OpRegistration reg("grn", [](const Context& ctx) {
   if (I.rank() > 4 || I.rank() < 2) {
     THROW_IE_EXCEPTION << "input tensor must be 2 <= rank <= 4 ";
   }
-  auto* layer = dynamic_cast<ngraph::opset1::GRN*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::GRN>(ctx.layer);
   auto bias = layer->get_bias();
   auto N = op::l2norm(I, {1}).epsilon(bias);
   return edsl::make_tuple(I / N);

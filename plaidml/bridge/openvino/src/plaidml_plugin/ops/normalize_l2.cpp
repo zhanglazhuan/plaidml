@@ -19,7 +19,7 @@ static OpRegistration reg("normalizel2", [](const Context& ctx) {
   IE_ASSERT(ctx.operands.size() == 2);
   auto I = ctx.operands.at(0);
   auto axes = get_axis_vector_from_constant_operand(1, ctx.layer);
-  auto* layer = dynamic_cast<ngraph::opset1::NormalizeL2*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::NormalizeL2>(ctx.layer);
   auto eps = layer->get_eps();
   auto eps_mode = layer->get_eps_mode();
 

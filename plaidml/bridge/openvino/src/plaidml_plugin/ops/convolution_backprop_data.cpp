@@ -16,7 +16,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("convolutionbackpropdata", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::ConvolutionBackpropData*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::ConvolutionBackpropData>(ctx.layer);
   IE_ASSERT(ctx.operands.size() >= 2);
   IE_ASSERT(ctx.operands.size() <= 3);
   auto I = ctx.operands.at(0);

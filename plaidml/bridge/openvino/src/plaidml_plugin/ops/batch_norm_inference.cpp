@@ -20,7 +20,7 @@ static OpRegistration reg("batchnorminference", [](const Context& ctx) {
   // This is because the tests show that the input is expected to be the third input tensor. Presumably either the OV
   // code or the OV docs will eventually be updated to make these consistent, and when that happens we'll need to update
   // this code.
-  auto* layer = dynamic_cast<ngraph::opset1::BatchNormInference*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::BatchNormInference>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 5);
   auto I = ctx.operands.at(2);
   auto gamma = ctx.operands.at(0);

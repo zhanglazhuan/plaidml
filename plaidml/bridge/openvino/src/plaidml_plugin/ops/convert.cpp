@@ -16,7 +16,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("convert", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::Convert*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::Convert>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
   auto type = to_plaidml(layer->get_destination_type());

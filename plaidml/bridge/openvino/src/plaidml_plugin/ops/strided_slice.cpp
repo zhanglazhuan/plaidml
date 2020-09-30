@@ -17,8 +17,7 @@ namespace {
 
 template <typename T>
 std::vector<T> cast_constant_operand(size_t operand_idx, ngraph::Node* layer) {
-  auto ngraph_const =
-      std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(operand_idx).get_node_shared_ptr());
+  auto* ngraph_const = ngraph::as_type<ngraph::op::Constant>(layer->get_input_node_ptr(operand_idx));
   if (ngraph_const) {
     return ngraph_const->cast_vector<T>();
   } else {
@@ -32,7 +31,7 @@ std::vector<T> cast_constant_operand(size_t operand_idx, ngraph::Node* layer) {
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("stridedslice", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::StridedSlice*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::StridedSlice>(ctx.layer);
   IE_ASSERT(ctx.operands.size() <= 4);
   IE_ASSERT(ctx.operands.size() >= 3);
   auto I = ctx.operands.at(0);

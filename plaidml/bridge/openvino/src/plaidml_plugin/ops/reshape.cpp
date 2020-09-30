@@ -15,12 +15,12 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("reshape", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::Reshape*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::Reshape>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 2);
   auto I = ctx.operands.at(0);
   // operands.at(1) is unused, just read the Constant instead
   ngraph::Shape shape;
-  auto shape_ngraph_op = std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(1).get_node_shared_ptr());
+  auto shape_ngraph_op = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input_value(1).get_node_shared_ptr());
   if (shape_ngraph_op) {
     shape = shape_ngraph_op->get_shape_val();
   } else {
