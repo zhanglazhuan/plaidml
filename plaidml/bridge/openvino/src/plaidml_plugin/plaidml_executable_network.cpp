@@ -51,14 +51,9 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       TensorShape ts(type, dims);
       Buffer buffer(device, ts);
       // Specially resolve the constant-creating op
-      // Context ctx{node.get()};
-      // auto* layer = dynamic_cast<ngraph::opset1::Constant*>(ctx.layer);
-      // if (!layer) {
-      //   IVLOG(1, "LAYER IS NULL!!!!!");  // TODO
-      // } else {
-      //   IVLOG(1, "Layer is not null, should be safe");
-      // }
-      // buffer.copy_from(layer->get_data_ptr());
+      Context ctx{node.get()};
+      auto* layer = ngraph::as_type<ngraph::opset1::Constant>(ctx.layer);
+      buffer.copy_from(layer->get_data_ptr());
       auto tensor = edsl::Constant(type, buffer, dims, node->get_friendly_name());
       IVLOG(3, "    Adding constant named '" << node->get_output_tensor_name(0) << "'");
       tensorMap_[node->output(0).get_tensor_ptr()] = tensor;

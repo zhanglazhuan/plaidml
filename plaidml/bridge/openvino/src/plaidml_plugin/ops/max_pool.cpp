@@ -16,7 +16,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("maxpool", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::MaxPool*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::MaxPool>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
   std::vector<int> strides;
