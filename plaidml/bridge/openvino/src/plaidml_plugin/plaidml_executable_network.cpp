@@ -73,10 +73,8 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
           tensorMap_.at(node->input(0).get_tensor_ptr());
       continue;
     }
-    IVLOG(2, "TODO fell through the const/param/outp stuff");
 
     auto op = OpsRegistry::instance()->resolve(node->description());
-    IVLOG(3, "TODO resolved node with description " << node->description());
     if (!op) {
       THROW_IE_EXCEPTION << "Unsupported operation: " << node->description();
     }
@@ -90,16 +88,11 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       }
       auto tensor = tensorMap_.at(input.get_tensor_ptr());
       ctx.operands.push_back(tensor);
-      IVLOG(2, "TODO finished an input");
     }
-    IVLOG(1, "TODO finished all inputs");
     auto value = op(ctx);
-    IVLOG(3, "TODO built value from ctx");
     auto tuple = value.as_tuple();
-    IVLOG(3, "TODO wrapped value as tuple");
     IVLOG(2, "Tuple size: " << tuple.size() << ", node output size: " << node->get_output_size());
     IE_ASSERT(tuple.size() == node->get_output_size());
-    IVLOG(1, "TODO tuple v outputs sizes assert passes");
     for (unsigned i = 0; i < tuple.size(); i++) {
       auto tensor = tuple.at(i).as_tensor();
       if (VLOG_IS_ON(1)) {
