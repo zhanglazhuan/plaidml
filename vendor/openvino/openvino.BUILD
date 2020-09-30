@@ -21,19 +21,19 @@ cc_library(
         "inference-engine/samples/common",
         "inference-engine/samples/common/format_reader",
     ],
-    linkopts = select({
-        "@bazel_tools//src/conditions:windows": [],
-        "@bazel_tools//src/conditions:darwin_x86_64": [],
-        "//conditions:default": [
-            "-pthread",
-            "-lm",
-            "-ldl",
-        ],
-    }),
+    #linkopts = select({
+    #    "@bazel_tools//src/conditions:windows": [],
+    #    "@bazel_tools//src/conditions:darwin_x86_64": [],
+    #    "//conditions:default": [
+    #        "-pthread",
+    #        "-lm",
+    #        "-ldl",
+    #    ],
+    #}),
     linkstatic = 0,
     deps = [
         ":inference_engine",
-        ":mkldnn_plugin",
+        #":mkldnn_plugin",
         "@gflags",
     ],
 )
@@ -379,9 +379,6 @@ cc_library(
         "inference-engine/src/inference_engine",
         "inference-engine/src/readers/ir_reader",  # TODO: Why does this work?
         "inference-engine/src/readers/reader_api",  # TODO: Why does this work?
-    ],
-    local_defines = [
-        "ENABLE_IR_READER",
     ],
     tags = TAGS,
     deps = [
