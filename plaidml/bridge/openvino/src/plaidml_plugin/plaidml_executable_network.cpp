@@ -67,7 +67,7 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       tensorMap_[node->output(0).get_tensor_ptr()] = tensor;
       tensorIONameMap_[node->get_name()] = tensor;
       continue;
-    } else if (ngraph::op::is_output(node)) {
+    } else if (ngraph::op::is_output(node) || node->description() == "Result") {  // TODO Unneeded ||
       // The OV output name is the name of the node _prior_ to the result
       tensorIONameMap_[node->inputs()[0].get_source_output().get_node()->get_name()] =
           tensorMap_.at(node->input(0).get_tensor_ptr());
@@ -124,6 +124,7 @@ void PlaidMLExecutableNetwork::GetMetric(const std::string& name, Parameter& res
   } else {
     THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
   }
+  IVLOG(1, "Exiting GetMetric");
 }
 
 }  // namespace PlaidMLPlugin

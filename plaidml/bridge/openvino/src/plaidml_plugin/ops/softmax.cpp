@@ -15,7 +15,7 @@ using namespace InferenceEngine;  // NOLINT[build/namespaces]
 namespace PlaidMLPlugin {
 
 static OpRegistration reg("softmax", [](const Context& ctx) {
-  auto* layer = dynamic_cast<ngraph::opset1::Softmax*>(ctx.layer);
+  auto* layer = ngraph::as_type<ngraph::opset1::Softmax>(ctx.layer);
   IE_ASSERT(ctx.operands.size() == 1);
   auto I = ctx.operands.at(0);
   return edsl::make_tuple(op::softmax(I, layer->get_axis()));
