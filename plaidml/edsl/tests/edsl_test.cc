@@ -252,9 +252,9 @@ TEST_F(CppEdsl, BitXor) {
   std::vector<uint64_t> B_input{10, 11, 12,  //
                                 13, 14, 15,  //
                                 16, 17, 18};
-  std::vector<uint64_t> C_output{1 ^ 10, 2 ^ 11, 3 ^ 12,  //
-                                 4 ^ 13, 5 ^ 14, 6 ^ 15,  //
-                                 7 ^ 16, 8 ^ 17, 9 ^ 18};
+  std::vector<uint64_t> C_output{0x1 ^ 10, 0x2 ^ 11, 0x3 ^ 12,  //
+                                 0x4 ^ 13, 0x5 ^ 14, 0x6 ^ 15,  //
+                                 0x7 ^ 16, 0x8 ^ 17, 0x9 ^ 18};
   checkProgram(program, {{A, A_input}, {B, B_input}}, {{C, C_output}});
 }
 
@@ -1503,6 +1503,44 @@ TEST_F(CppEdsl, Tan) {
       1.55741,  0,        -0.684137  //
   };
   checkProgram(program, {{S, input}}, {{O, expected}});
+}
+
+TEST_F(CppEdsl, Scatter1D) {
+  auto I = Placeholder(DType::INT32, {4});
+  auto U = Placeholder(DType::FLOAT32, {4});
+  auto S = Placeholder(DType::INT32, {8});
+  auto O = scatter(U, I, S);
+  auto program = makeProgram("scatter", {O});
+
+  std::vector<int32_t> indices = {4, 3, 1, 7};
+  std::vector<float> updates = {9, 10, 11, 12};
+  std::vector<int32_t> shape = {8};
+  std::vector<float> expected = {0, 11, 0, 10, 9, 0, 0, 12};
+  checkProgram(program, {{I, indices}, {U, updates}, {S, shape}}, {{O, expected}});
+}
+
+TEST_F(CppEdsl, Scatter3D) {
+  auto I = Placeholder(DType::INT32, {2});
+  auto U = Placeholder(DType::FLOAT32, {2, 4, 4});
+  auto S = Placeholder(DType::INT32, {4, 4, 4});
+  auto O = scatter(U, I, S);
+  auto program = makeProgram("scatter", {O});
+
+  std::vector<int32_t> indices = {0, 2};
+  std::vector<float> updates = {
+      5, 5, 5, 5, 6, 6, 6, 6,  //
+      7, 7, 7, 7, 8, 8, 8, 8,  //
+      5, 5, 5, 5, 6, 6, 6, 6,  //
+      7, 7, 7, 7, 8, 8, 8, 8   //
+  };
+  std::vector<int32_t> shape = {4, 4, 4};
+  std::vector<float> expected = {
+      5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,  //
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  //
+      5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8,  //
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0   //
+  };
+  checkProgram(program, {{I, indices}, {U, updates}, {S, shape}}, {{O, expected}});
 }
 
 }  // namespace

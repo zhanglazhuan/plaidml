@@ -4,31 +4,36 @@ load("@rules_python//python:defs.bzl", "py_test")
 load("//bzl:plaidml.bzl", "plaidml_cc_test")
 load("//pmlc:lit.bzl", "lit_test")
 
+exports_files(
+    ["edsl_test-skip.intel_gen.txt",
+     "edsl_test-skip.intel_gen_ocl_spirv.txt"],
+)
+
 plaidml_cc_test(
     name = "cc_test",
+    testonly = 0,
     srcs = ["edsl_test.cc"],
-    deps = [
-        "//plaidml:testenv",
-        "//plaidml/edsl",
-        "//plaidml/exec",
-    ] + select({
-        "//plaidml:gpu_target": ["//pmlc/rt/vulkan"],
-        "//conditions:default": [],
-    }),
     args = [
         "--plaidml_device=$(plaidml_device)",
         "--plaidml_target=$(plaidml_target)",
     ] + select({
         "//plaidml:intel_gen": ["--skip_test_file=$(location edsl_test-skip.intel_gen.txt)"],
+        "//plaidml:intel_gen_ocl_spirv": ["--skip_test_file=$(location edsl_test-skip.intel_gen_ocl_spirv.txt)"],
         "//conditions:default": [],
     }),
     data = select({
         "//plaidml:intel_gen": [":edsl_test-skip.intel_gen.txt"],
+        "//plaidml:intel_gen_ocl_spirv": [":edsl_test-skip.intel_gen_ocl_spirv.txt"],
         "//conditions:default": [],
     }),
-    toolchains = ["//plaidml:settings"],
     linkstatic = True,
+    toolchains = ["//plaidml:settings"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//plaidml:testenv",
+        "//plaidml/edsl",
+        "//plaidml/exec",
+    ],
 )
 
 py_test(

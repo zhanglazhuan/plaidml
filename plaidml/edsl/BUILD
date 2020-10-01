@@ -60,11 +60,13 @@ py_library(
 plaidml_cc_test(
     name = "cc_docs",
     srcs = ["edsl_docs.cc"],
+    linkstatic = True,
     deps = [
         ":edsl",
         "//plaidml:testenv",
         "//plaidml/exec",
     ],
+    size = "small",
 )
 
 py_test(
@@ -75,4 +77,5 @@ py_test(
         ":py",
         "//plaidml/exec:py",
     ],
+    size = "small",
 )

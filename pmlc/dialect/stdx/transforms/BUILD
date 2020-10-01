@@ -26,7 +26,6 @@ plaidml_cc_library(
         "boundscheck.cc",
         "i1_to_i32.cc",
         "pass_detail.h",
-        "subgroup_broadcast.cc",
     ],
     hdrs = [
         "passes.h",
@@ -38,6 +37,8 @@ plaidml_cc_library(
         "//pmlc/dialect/pxa/ir",
         "//pmlc/dialect/stdx/ir",
         "//pmlc/dialect/tile/ir",
+        "@llvm-project//mlir:LLVMTransforms",
+        "@llvm-project//mlir:StandardOpsTransforms",
         "@llvm-project//mlir:SCFDialect",
         "@llvm-project//mlir:VectorOps",
     ],

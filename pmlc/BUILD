@@ -11,10 +11,13 @@ filegroup(
 filegroup(
     name = "lit_tests",
     srcs = [
+        "//pmlc/conversion/comp_to_llvm/tests:all",
+        "//pmlc/conversion/gpu_to_comp/tests:all",
+        "//pmlc/conversion/gpu_to_spirv/tests:all",
         "//pmlc/conversion/pxa_to_affine/tests:all",
         "//pmlc/conversion/stdx_to_llvm/tests:all",
         "//pmlc/conversion/tile_to_pxa/tests:all",
-        "//pmlc/conversion/gpu_to_spirv/tests:all",
+        "//pmlc/dialect/comp/tests:all",
         "//pmlc/dialect/eltwise/tests:all",
         "//pmlc/dialect/oplib/tests:all",
         "//pmlc/dialect/pxa/tests:all",
@@ -22,6 +25,7 @@ filegroup(
         "//pmlc/dialect/tile/tests:all",
         "//pmlc/dialect/xsmm/tests:all",
         "//pmlc/rt/tests:all",
+        "//pmlc/rt/opencl/tests:all",
         "//pmlc/rt/vulkan/tests:all",
         "//pmlc/target/intel_gen/tests:all",
         "//pmlc/target/x86/tests:all",
@@ -36,6 +40,7 @@ plaidml_cc_test(
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Transforms",
     ],
+    size = "small",
 )
 
 plaidml_cc_library(
@@ -53,11 +58,14 @@ plaidml_cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":hdrs",
+        "//pmlc/conversion/comp_to_llvm",
         "//pmlc/conversion/gpu",
+        "//pmlc/conversion/gpu_to_comp",
+        "//pmlc/conversion/gpu_to_spirv",
         "//pmlc/conversion/pxa_to_affine",
         "//pmlc/conversion/stdx_to_llvm",
         "//pmlc/conversion/tile_to_pxa",
-        "//pmlc/conversion/gpu_to_spirv",
+        "//pmlc/dialect/comp",
         "//pmlc/dialect/eltwise",
         "//pmlc/dialect/pxa",
         "//pmlc/dialect/stdx",
@@ -65,6 +73,7 @@ plaidml_cc_library(
         "//pmlc/dialect/xsmm",
         "//pmlc/target/demo",
         "//pmlc/target/intel_gen",
+        "//pmlc/target/intel_gen_ocl_spirv",
         "//pmlc/target/x86",
         "@llvm-project//mlir:AllPassesAndDialectsNoRegistration",
     ],
@@ -104,4 +113,10 @@ plaidml_cc_binary(
     name = "vulkan",
     data = [":lit_tests"],
     deps = ["//pmlc/tools/pmlc-vulkan-runner:lib"],
+)
+
+plaidml_cc_binary(
+    name = "opencl",
+    data = [":lit_tests"],
+    deps = ["//pmlc/tools/pmlc-opencl-runner:lib"],
 )

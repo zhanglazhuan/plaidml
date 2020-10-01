@@ -16,6 +16,11 @@ std::unique_ptr<mlir::Pass> createConvertStandardToLLVM();
 
 std::unique_ptr<mlir::Pass> createParallelLoopToGpuPass();
 
+std::unique_ptr<mlir::Pass> createSubgroupBroadcastPass();
+std::unique_ptr<mlir::Pass> createSubgroupBroadcastPass(bool useBlockOps);
+
+std::unique_ptr<mlir::Pass> createLowerPXAToAffinePass();
+
 void pipelineBuilder(mlir::OpPassManager &pm);
 
 /// Generate the code for registering passes.

@@ -52,12 +52,13 @@ cc_binary(
 )
 
 cc_binary(
-    name = "libplaidml-plugin.so",
+    name = "plaidml-plugin",
     linkopts = PLAIDML_LINKOPTS,
     linkshared = 1,
     tags = TAGS,
     deps = [
         ":lib",
+        "//plaidml:runtimes",
         "//plaidml:targets",
     ],
 )
@@ -79,15 +80,12 @@ plaidml_cc_library(
     name = "testenv",
     testonly = 1,
     srcs = ["testenv.cpp"],
+    tags = TAGS,
     visibility = ["//visibility:public"],
     deps = [
-        "@openvino//:shared_plugin_tests",
+        "@com_google_googletest//:gtest",
         "@gflags",
-        "@gmock//:gtest",
-    ],
-    tags = [
-        "skip_macos",
-        "skip_windows",
+        "@openvino//:shared_plugin_tests",
     ],
     alwayslink = 1,
 )
