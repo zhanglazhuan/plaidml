@@ -47,7 +47,7 @@ cc_binary(
     deps = [
         "@openvino//:benchmark_app",
         ":libinference_engine_ir_reader.so",
-        ":libplaidml-plugin.so",
+        ":plaidml-plugin",
     ],
 )
 

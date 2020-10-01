@@ -69,7 +69,8 @@ PlaidMLExecutableNetwork::PlaidMLExecutableNetwork(const ICNNNetwork& network, c
       IVLOG(3, "    Also, aliasing " << node->get_output_tensor_name(0) << " as " << node->get_friendly_name());
       tensorIOMap_[node->get_friendly_name()] = tensor;
       continue;
-    } else if (node->is_constant()) {
+    } else if (node->is_output() || node->description() == "Result") {  // TODO Unneeded ||
+      // The OV output name is the name of the node _prior_ to the result)
       const auto& src_output = node->inputs()[0].get_source_output();
       const auto& friendly_name = src_output.get_node()->get_friendly_name();
       const auto& original_name = src_output.get_node()->get_output_tensor_name(src_output.get_index());

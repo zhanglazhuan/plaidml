@@ -64,6 +64,7 @@ cc_library(
             "cum_sum.cpp",
             "extract_image_patches.cpp",
             "space_to_batch.cpp",
+	    "transpose.cpp", #For now
         ],
     ),
     copts = COPTS,
@@ -137,6 +138,7 @@ cc_library(
             "split.cpp",  # Known errors
             "space_to_batch.cpp",  # Doesn't compile
             "tile.cpp",  # Known errors
+	    "transpose.cpp", #For now
         ],
     ),
     copts = COPTS,
