@@ -143,6 +143,7 @@ cc_library(
 	    "eltwise.cpp", #For now
 	    "lrn.cpp", #for now
 	    "mvn.cpp", #for now
+	    "softmax.cpp", #for now
         ],
     ),
     copts = COPTS,
