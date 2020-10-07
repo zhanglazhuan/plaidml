@@ -46,38 +46,6 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
 };
-/*
-const std::vector<ActivationTypes> activationTypes = {
-    // Gelu, //
-    // Mish, //
-    Sigmoid,      //
-    Tanh,         //
-    Relu,         //
-    LeakyRelu,    //
-    Exp,          //
-    Log,          //
-    Sign,         //
-    Abs,          //
-    Clamp,        //
-    Negative,     //
-    Acos,         //
-    Asin,         //
-    Atan,         //
-    Cos,          //
-    Cosh,         //
-    Floor,        //
-    Sin,          //
-    Sinh,         //
-    Sqrt,         //
-    Tan,          //
-    Elu,          //
-    Erf,          //
-    HardSigmoid,  //
-    Selu,         //
-    Ceiling,      //
-    PReLu,        //
-};
-*/
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
     {Sigmoid, {}},
@@ -109,6 +77,9 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
     // {HSwish,      {}},
     // {SoftPlus,    {}}
 };
+
+// TODO: Missing PReLU types, see
+// inference-engine/tests/functional/plugin/cpu/shared_tests_instances/single_layer_tests/activation.cpp
 
 // TODO: Missing PReLU types, see
 // inference-engine/tests/functional/plugin/cpu/shared_tests_instances/single_layer_tests/activation.cpp

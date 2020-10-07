@@ -2,10 +2,11 @@
 
 module {
   // CHECK-LABEL: func @create_destroy
-  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate
+  //  CHECK-SAME:     %[[DEV:.*]]: !llvm.ptr<i8>
+  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate(%[[DEV]])
   //       CHECK:   llvm.call @oclDestroy(%[[ENV]])
-  func @create_destroy() {
-    %env = comp.create_execenv : !comp.execenv<ocl:0,(11)>
+  func @create_destroy(%dev: !comp.device) {
+    %env = comp.create_execenv %dev : (!comp.device) -> !comp.execenv<ocl:0,(11)>
     comp.destroy_execenv %env : !comp.execenv<ocl:0,(11)>
     return
   }
@@ -15,15 +16,16 @@ module {
 
 module {
   // CHECK-LABEL: func @no_gpu_func
-  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate
+  //  CHECK-SAME:     %[[DEV:.*]]: !llvm.ptr<i8>
+  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate(%[[DEV]])
   //       CHECK:   %[[CST0:.*]] = llvm.mlir.constant(0
   //       CHECK:   %[[EV:.*]] = llvm.call @oclBarrier(%[[ENV]], %[[CST0]])
   //       CHECK:   llvm.call @oclSubmit(%[[ENV]])
   //       CHECK:   %[[CST1:.*]] = llvm.mlir.constant(1
   //       CHECK:   llvm.call @oclWait(%[[CST1]], %[[EV]])
   //       CHECK:   llvm.call @oclDestroy(%[[ENV]])
-  func @no_gpu_func() {
-    %env = comp.create_execenv : !comp.execenv<ocl:0,(11)>
+  func @no_gpu_func(%dev: !comp.device) {
+    %env = comp.create_execenv %dev : (!comp.device) -> !comp.execenv<ocl:0,(11)>
     %ev = comp.schedule_barrier %env : (!comp.execenv<ocl:0,(11)>) -> !comp.event<ocl>
     comp.submit %env : !comp.execenv<ocl:0,(11)>
     comp.wait %ev : !comp.event<ocl>
@@ -36,14 +38,15 @@ module {
 
 module {
   // CHECK-LABEL: func @alloc_dealloc
-  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate
+  //  CHECK-SAME:     %[[DEV:.*]]: !llvm.ptr<i8>
+  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate(%[[DEV]])
   //       CHECK:   %[[CNT:.*]] = llvm.mlir.constant(1024
   //       CHECK:   %[[NUL:.*]] = llvm.mlir.null
   //       CHECK:   %[[MEM:.*]] = llvm.call @oclAlloc(%[[ENV]], %[[CNT]], %[[NUL]])
   //       CHECK:   llvm.call @oclDealloc(%[[ENV]], %[[MEM]])
   //       CHECK:   llvm.call @oclDestroy(%[[ENV]])
-  func @alloc_dealloc() {
-    %env = comp.create_execenv : !comp.execenv<ocl:0,(11)>
+  func @alloc_dealloc(%dev: !comp.device) {
+    %env = comp.create_execenv %dev : (!comp.device) -> !comp.execenv<ocl:0,(11)>
     %mem = comp.alloc %env : (!comp.execenv<ocl:0,(11)>) -> memref<8x32xf32, 11>
     comp.dealloc %env %mem : (!comp.execenv<ocl:0,(11)>, memref<8x32xf32, 11>) -> ()
     comp.destroy_execenv %env : !comp.execenv<ocl:0,(11)>
@@ -55,7 +58,9 @@ module {
 
 module attributes {gpu.container_module} {
   // CHECK-LABEL: func @one_gpu_func
-  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate
+  //  CHECK-SAME:     %[[DEV:[a-zA-Z0-9]*]]: !llvm.ptr<i8>
+  //  CHECK-SAME:     %{{[a-zA-Z0-9]*}}: memref<8x32xf32>
+  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate(%[[DEV]])
   //       CHECK:   %[[CNT:.*]] = llvm.mlir.constant(1024
   //       CHECK:   %[[MEM:.*]] = llvm.call @oclAlloc(%[[ENV]], %[[CNT]], %{{.*}})
   //       CHECK:   %[[CST0:.*]] = llvm.mlir.constant(0
@@ -70,11 +75,11 @@ module attributes {gpu.container_module} {
   //       CHECK:   llvm.call @oclWait(%[[CST1]], %[[REV]])
   //       CHECK:   llvm.call @oclDealloc(%[[ENV]], %[[MEM]])
   //       CHECK:   llvm.call @oclDestroy(%[[ENV]])
-  func @one_gpu_func(%arg0: memref<8x32xf32>) {
+  func @one_gpu_func(%dev: !comp.device, %arg0: memref<8x32xf32>) {
     %c8 = constant 8 : index
     %c32 = constant 32 : index
     %c1 = constant 1 : index
-    %env = comp.create_execenv : !comp.execenv<ocl:0,(11)>
+    %env = comp.create_execenv %dev : (!comp.device) -> !comp.execenv<ocl:0,(11)>
     %mem0 = comp.alloc %env %arg0 : (!comp.execenv<ocl:0,(11)>, memref<8x32xf32>) -> memref<8x32xf32, 11>
     %wev = comp.schedule_write %arg0 to %mem0 on %env : (memref<8x32xf32>, memref<8x32xf32, 11>, !comp.execenv<ocl:0,(11)>) -> !comp.event<ocl>
     %fev = "comp.schedule_func"(%env, %wev) ( {
@@ -128,7 +133,9 @@ module attributes {gpu.container_module} {
 
 module attributes {gpu.container_module} {
   // CHECK-LABEL: func @one_gpu_func
-  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate
+  //  CHECK-SAME:     %[[DEV:[a-zA-Z0-9]*]]: !llvm.ptr<i8>
+  //  CHECK-SAME:     %{{[a-zA-Z0-9]*}}: memref<8x32xf16>
+  //       CHECK:   %[[ENV:.*]] = llvm.call @oclCreate(%[[DEV]])
   //       CHECK:   %[[CNT:.*]] = llvm.mlir.constant(512
   //       CHECK:   %[[MEM:.*]] = llvm.call @oclAlloc(%[[ENV]], %[[CNT]], %{{.*}})
   //       CHECK:   %[[CST0:.*]] = llvm.mlir.constant(0
@@ -143,11 +150,11 @@ module attributes {gpu.container_module} {
   //       CHECK:   llvm.call @oclWait(%[[CST1]], %[[REV]])
   //       CHECK:   llvm.call @oclDealloc(%[[ENV]], %[[MEM]])
   //       CHECK:   llvm.call @oclDestroy(%[[ENV]])
-  func @one_gpu_func(%arg0: memref<8x32xf16>) {
+  func @one_gpu_func(%dev: !comp.device, %arg0: memref<8x32xf16>) {
     %c8 = constant 8 : index
     %c32 = constant 32 : index
     %c1 = constant 1 : index
-    %env = comp.create_execenv : !comp.execenv<ocl:0,(11)>
+    %env = comp.create_execenv %dev : (!comp.device) -> !comp.execenv<ocl:0,(11)>
     %mem0 = comp.alloc %env %arg0 : (!comp.execenv<ocl:0,(11)>, memref<8x32xf16>) -> memref<8x32xf16, 11>
     %wev = comp.schedule_write %arg0 to %mem0 on %env : (memref<8x32xf16>, memref<8x32xf16, 11>, !comp.execenv<ocl:0,(11)>) -> !comp.event<ocl>
     %fev = "comp.schedule_func"(%env, %wev) ( {

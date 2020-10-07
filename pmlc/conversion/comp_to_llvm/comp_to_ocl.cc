@@ -50,15 +50,18 @@ void ConvertCompToOcl::runOnOperation() {
     return signalPassFailure();
   // Populate conversion patterns.
   mlir::MLIRContext *context = &getContext();
-  mlir::TypeConverter typeConverter;
+  mlir::TypeConverter typeConverter, signatureConverter;
   mlir::OwningRewritePatternList patterns;
-  populateCommonPatterns(context, typeConverter);
+  populateCommonPatterns(context, typeConverter, signatureConverter, patterns);
   populateCompToOclPatterns(context, modulesMap, typeConverter, patterns);
   // Set conversion target.
   mlir::ConversionTarget target(*context);
   target.addLegalDialect<LLVM::LLVMDialect>();
   target.addLegalDialect<mlir::StandardOpsDialect>();
   target.addIllegalDialect<comp::COMPDialect>();
+  target.addDynamicallyLegalOp<mlir::FuncOp>([&](mlir::FuncOp op) -> bool {
+    return signatureConverter.isSignatureLegal(op.getType());
+  });
   if (mlir::failed(mlir::applyPartialConversion(module, target, patterns)))
     signalPassFailure();
   // Insert runtime function declarations.
@@ -193,7 +196,8 @@ void addOclFunctionDeclarations(mlir::ModuleOp &module) {
   if (!module.lookupSymbol(kOclCreate)) {
     builder.create<LLVM::LLVMFuncOp>(
         loc, kOclCreate,
-        LLVM::LLVMType::getFunctionTy(llvmInt8Ptr, {}, /*isVarArg=*/false));
+        LLVM::LLVMType::getFunctionTy(llvmInt8Ptr, {llvmInt8Ptr},
+                                      /*isVarArg=*/false));
   }
   if (!module.lookupSymbol(kOclDestroy)) {
     builder.create<LLVM::LLVMFuncOp>(
