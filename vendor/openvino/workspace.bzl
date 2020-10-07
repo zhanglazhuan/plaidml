@@ -16,21 +16,10 @@ def openvino_workspace():
         build_file = clean_dep("//vendor/openvino:ade.BUILD"),
     )
 
-    #new_git_repository(
-    #    name = "openvino",
-    #    # sha256 = "40652941587e579d45a190731960008827221d11575f7f2e6162285b6625b940",
-    #    remote = "file:///home/tim/openvino/.git",
-    #    commit = "ced877e4a8723161073eabd30beee92011c3ccad",
-    #    init_submodules = 1,
-    #    build_file = clean_dep("//vendor/openvino:openvino.BUILD"),
-    #)
-
-    new_git_repository(
+    http_archive(
         name = "openvino",
-        # sha256 = "40652941587e579d45a190731960008827221d11575f7f2e6162285b6625b940",
-        remote = "file:///home/nchoudhu/github_repo/openvino/.git",
-        commit = "87fbc738729e6e846e2fbeb282d56c8fdcb48132", # "35768e452c3c97bc40a9a4921599ac478b8b1d12",
-
-        init_submodules = 1,
+        url = "https://github.com/plaidml/openvino/archive/854851a93f2769cb8a59603cafa6c08f4cc7efb0.zip",
+        strip_prefix = "openvino-854851a93f2769cb8a59603cafa6c08f4cc7efb0",
+        sha256 = "1f62a191bd48efefcdcf2809c81cb0571bb6cd06ae42cb458c7baa3743e45815",
         build_file = clean_dep("//vendor/openvino:openvino.BUILD"),
     )
