@@ -14,7 +14,7 @@ namespace PlaidMLPlugin {
 
 class Engine : public InferenceEngine::InferencePluginInternal {
  public:
-  Engine();
+  Engine() = default;
   virtual ~Engine() = default;
 
   void GetVersion(const InferenceEngine::Version*& versionInfo) noexcept;
