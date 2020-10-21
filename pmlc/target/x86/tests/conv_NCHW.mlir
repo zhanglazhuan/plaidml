@@ -62,7 +62,7 @@ func @conv2(%I: !I_memref, %K: !K_memref, %O: !O_memref) {
   %CO = dim %O, %c1 : !O_memref
   affine.parallel (%x, %y, %ci, %co) = (0, 0, 0, 0) to (56, 56, 64, 64) reduce ("assign") -> (memref<1x64x56x56xf32>) {
     %0 = pxa.load %I[0, %ci, %x, %y] : !I_memref
-    %1 = pxa.load %K[0, 0, %co, %ci] : !K_memref
+    %1 = pxa.load %K[%co, %ci, 0, 0] : !K_memref
     %2 = mulf %0, %1 : f32
     %3 = pxa.reduce addf %2, %O[0, %co, %x, %y] : !O_memref
     affine.yield %3 : memref<1x64x56x56xf32>
