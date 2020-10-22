@@ -37,8 +37,14 @@ func @test_conv2(%impl : (!I_memref, !K_memref, !O_memref) -> ()) {
   %K = alloc() : !K_memref
   %O = alloc() : !O_memref
 
-  call @initI(%I) : (!I_memref) -> ()
-  call @initK(%K) : (!K_memref) -> ()
+  %I_4d = memref_cast %I : !I_memref to memref<?x?x?x?xf32>
+  call @fill_4d(%I_4d, %true) : (memref<?x?x?x?xf32>, i1) -> ()
+
+  %K_4d = memref_cast %K : !K_memref to memref<?x?x?x?xf32>
+  call @fill_4d(%K_4d, %true) : (memref<?x?x?x?xf32>, i1) -> ()
+
+ // call @initI(%I) : (!I_memref) -> ()
+ // call @initK(%K) : (!K_memref) -> ()
 
   linalg.fill(%O, %f0) : !O_memref, f32
  // linalg.fill(%I, %f1) : !I_memref, f32
@@ -47,7 +53,9 @@ func @test_conv2(%impl : (!I_memref, !K_memref, !O_memref) -> ()) {
   call_indirect %impl(%I, %K, %O) : (!I_memref, !K_memref, !O_memref) -> ()
 
   %O_ud = memref_cast %O : !O_memref to memref<*xf32>
-  call @print_memref_f32(%O_ud) : (memref<*xf32>) -> ()
+  %O_4d = memref_cast %O : !O_memref to memref<?x?x?x?xf32>
+  // call @print_memref_f32(%O_ud) : (memref<*xf32>) -> ()
+  call @print(%O_4d) : (memref<?x?x?x?xf32>) -> ()
 
   dealloc %O : !O_memref
   dealloc %K : !K_memref
@@ -78,7 +86,8 @@ func @initI(%modI: !I_memref) {
   affine.parallel (%x, %y, %ci) = (0, 0, 0) to (56, 56, 64) {
     %ar1 = addi %x, %y : index
     %ar2 = addi %ar1, %ci : index
-    %ar3 = index_cast %ar2 : index to i32
+    %ar2_1 = subi %ar2, %x : index
+    %ar3 = index_cast %ar2_1 : index to i32
     %ar4 = sitofp %ar3 : i32 to f32
     affine.store %ar4, %modI[0, %ci, %x, %y] : !I_memref
   }
@@ -97,6 +106,54 @@ func @initK(%modK: !K_memref) {
     affine.store %ar5, %modK[%ci, %co, 0, 0] : !K_memref
   }
 
+  return
+}
+
+func @print(%buf : memref<?x?x?x?xf32>) {
+  %c0 = constant 0 : index
+  %c1 = constant 1 : index
+  %c2 = constant 2 : index
+  %c3 = constant 3 : index
+
+  %X = dim %buf, %c0 : memref<?x?x?x?xf32>
+  %Y = dim %buf, %c1 : memref<?x?x?x?xf32>
+  %Z = dim %buf, %c2 : memref<?x?x?x?xf32>
+  %W = dim %buf, %c3 : memref<?x?x?x?xf32>
+
+  affine.parallel (%x, %y, %z, %w) = (0, 0, 0, 0) to (%X, %Y, %Z, %W) {
+     %t = affine.load %buf[%x, %y, %z, %w] : memref<?x?x?x?xf32>
+     %temp = alloc() : memref<1xf32>  
+     store %t, %temp[%c0] : memref<1xf32>
+     %temp_ud = memref_cast %temp : memref<1xf32> to memref<*xf32>  
+     call @print_memref_f32(%temp_ud) : (memref<*xf32>) -> ()
+  }
+  
+  return
+}
+
+func @fill_4d(%buf : memref<?x?x?x?xf32>, %alt : i1) {
+  %c0 = constant 0 : index
+  %c1 = constant 1 : index
+  %c2 = constant 2 : index
+  %c3 = constant 3 : index
+  %c5 = constant 5 : index
+  %X = dim %buf, %c0 : memref<?x?x?x?xf32>
+  %Y = dim %buf, %c1 : memref<?x?x?x?xf32>
+  %Z = dim %buf, %c2 : memref<?x?x?x?xf32>
+  %W = dim %buf, %c3 : memref<?x?x?x?xf32>
+  affine.parallel (%x, %y, %z, %w) = (0, 0, 0, 0) to (%X, %Y, %Z, %W) {
+    // i = linear offset
+    %i = affine.apply affine_map<(x, y, z, w)[Y, Z, W] -> (x * Y + y * W + z * W + w)>(%x, %y, %z, %w)[%Y, %Z, %W]
+    // t = alt ? i : 0
+    %t = select %alt, %i, %c0 : index
+    %j = affine.apply affine_map<(x, y, z, w) -> (x + y + z + w)>(%x, %y, %z, %w)
+    // v = j + t - 5
+    %2 = addi %j, %t : index
+    %v = subi %2, %c5 : index
+    %v_i64 = index_cast %v : index to i64
+    %v_f32 = sitofp %v_i64 : i64 to f32
+    store %v_f32, %buf[%x, %y, %z, %w] : memref<?x?x?x?xf32>
+  }
   return
 }
 
