@@ -35,9 +35,12 @@ func @test_conv2(%impl : (!I_memref, !K_memref, !O_memref) -> ()) {
   %K = alloc() : !K_memref
   %O = alloc() : !O_memref
 
+  call @initI(%I) : (!I_memref) -> ()
+  call @initK(%K) : (!K_memref) -> ()
+
   linalg.fill(%O, %f0) : !O_memref, f32
-  linalg.fill(%I, %f1) : !I_memref, f32
-  linalg.fill(%K, %f2) : !K_memref, f32
+  // linalg.fill(%I, %f1) : !I_memref, f32
+  // linalg.fill(%K, %f2) : !K_memref, f32
 
   call_indirect %impl(%I, %K, %O) : (!I_memref, !K_memref, !O_memref) -> ()
 
@@ -68,3 +71,29 @@ func @conv2(%I: !I_memref, %K: !K_memref, %O: !O_memref) {
   return
 }
 
+// NHWC
+func @initI(%origI: !I_memref) {
+  affine.parallel (%x, %y, %ci) = (0, 0, 0) to (56, 56, 64) {
+    %ar1 = addi %x, %y : index
+    %ar2 = addi %ar1, %ci : index
+    %ar3 = index_cast %ar2 : index to i32
+    %ar4 = sitofp %ar3 : i32 to f32
+    affine.store %ar4, %origI[0, %x, %y, %ci] : !I_memref
+  }
+
+  return
+}
+
+// kh-kw-nifm-nofm-kh-kw
+func @initK(%origK: !K_memref) {
+  affine.parallel (%kh, %kw, %ci, %co) = (0, 0, 0, 0) to (1, 1, 64, 64) {
+    %ar1 = addi %kh, %kw : index
+    %ar2 = addi %ar1, %ci : index
+    %ar3 = addi %ar2, %co : index
+    %ar4 = index_cast %ar3 : index to i32
+    %ar5 = sitofp %ar4 : i32 to f32
+    affine.store %ar5, %origK[0, 0, %ci, %co] : !K_memref
+  }
+
+  return
+}
