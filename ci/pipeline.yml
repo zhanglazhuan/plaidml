@@ -10,7 +10,7 @@ steps:
     command: '{{python}} ci/buildkite.py build {{name}}'
     key: '{{name}}'
     agents:
-      PLATFORM: windows_x86_64-test
+      PLATFORM: '{{name}}-test'
     artifact_paths:
       {{#artifacts}}
       - "tmp/build/**/*"
@@ -18,6 +18,4 @@ steps:
       - "bazel-testlogs/**/test.log"
 {{/variants}}
 
-
-# test phase
 
