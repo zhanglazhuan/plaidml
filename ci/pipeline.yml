@@ -10,7 +10,7 @@ steps:
     command: '{{python}} ci/buildkite.py build {{name}}'
     key: '{{name}}'
     agents:
-      PLATFORM: '{{name}}-test'
+      PLATFORM: '{{name}}'
     artifact_paths:
       {{#artifacts}}
       - "tmp/build/**/*"
