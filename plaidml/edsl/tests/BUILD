@@ -33,7 +33,6 @@ plaidml_cc_test(
     }),
     linkstatic = True,
     toolchains = ["//plaidml:settings"],
-    visibility = ["//visibility:public"],
     deps = [
         "//plaidml:testenv",
         "//plaidml/edsl",
