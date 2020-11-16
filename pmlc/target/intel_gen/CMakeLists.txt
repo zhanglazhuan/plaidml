@@ -25,7 +25,9 @@ pml_cc_library(
     MLIRAffineToStandard
     MLIRAffineTransforms
     MLIRGPU
+    MLIRSPIRVTransforms
     MLIRGPUToSPIRVTransforms
+    MLIRVectorToSPIRV
     MLIRGPUToVulkanTransforms
     MLIRLLVMIRTransforms
     MLIRSCFToGPU

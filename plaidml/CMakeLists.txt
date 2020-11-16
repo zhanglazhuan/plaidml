@@ -11,7 +11,6 @@ pml_cc_library(
   TYPE SHARED
   LINKOPTS
     # TODO: use platform-specific flags
-    -Wl,--version-script ${LINUX_LDS}
   PROPS
     LINK_DEPENDS ${LINUX_LDS}
     LINK_DEPENDS ${MACOS_LD}
@@ -24,7 +23,11 @@ pml_cc_library(
     plaidml::exec::obj
     plaidml::op::obj
     pmlc::rt::llvm
+    pmlc::rt::vulkan
+    pmlc::rt::opencl
     pmlc::target::x86
+    pmlc::target::intel_gen
+    pmlc::target::intel_gen_ocl_spirv
 )
 
 pml_cc_library(
