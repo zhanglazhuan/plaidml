@@ -22,6 +22,7 @@ plaidml_cc_library(
         "pad_ranges.cc",
         "padding.cc",
         "pass_detail.h",
+        "reorder_inputs.cc",
     ],
     hdrs = [
         "contraction.h",

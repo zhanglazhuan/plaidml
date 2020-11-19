@@ -64,6 +64,7 @@ struct OclPipelineOptions : public PassPipelineOptions<OclPipelineOptions> {
 
 void pipelineBuilder(OpPassManager &pm,
                      const OclPipelineOptions &oclPipelineOptions) {
+  pm.addPass(tile::createReorderInputsPass());
   // Bound + pad initial tile code
   pm.addPass(layer::createInlineLayersPass());
   pm.addPass(tile::createComputeBoundsPass());
