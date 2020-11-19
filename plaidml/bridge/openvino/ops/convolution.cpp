@@ -33,8 +33,8 @@ static OpRegistration reg("convolution", [](const Context& ctx) {
                     .strides(strides)
                     .dilations(dilations)
                     .autopad_mode(autopad_mode)
-                    .input_layout(plaidml::op::TensorLayout::NCX)
-                    .filter_layout(plaidml::op::TensorLayout::KCX);
+                    .input_layout(plaidml::op::TensorLayout::NXC)
+                    .filter_layout(plaidml::op::TensorLayout::XCK);
   if (autopad_mode == plaidml::op::AutoPadMode::EXPLICIT) {
     std::vector<int> padding;
     for (auto pad : layer->get_pads_begin()) {
