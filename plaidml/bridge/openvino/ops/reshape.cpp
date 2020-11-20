@@ -36,6 +36,13 @@ static OpRegistration reg("reshape", [](const Context& ctx) {
     }
   }
 
+  // hack for reshape, remove
+  /*if (shape[0] == 1 && shape[1] == 0) {
+      shape[0] = 0;
+      shape[1] = 1;
+      shape.push_back(1);
+      shape.push_back(0);
+  }*/
   return edsl::make_tuple(op::reshape(I, edsl::make_tuple<size_t>(shape)));
 });
 

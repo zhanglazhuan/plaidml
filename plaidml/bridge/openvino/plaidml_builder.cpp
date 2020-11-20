@@ -163,13 +163,34 @@ void ProgramBuilder::handleConstant(const std::shared_ptr<ngraph::Node>& node) {
   plaidml::edsl::Tensor tensor = plaidml::edsl::Constant(buffer, node->get_friendly_name());
   tensorMap[std::make_pair(node->get_name(), 0)] = tensor;
 
-  std::vector<int64_t> dims_reordered{dims[2], dims[3], dims[1], dims[0]};
+  std::vector<int64_t> dims_reordered{dims[0], dims[2], dims[3], dims[1]};
   // Special case for bias, need to solve it, by checking if the user is convolution and needs XCK format
   // or bias that needs NXC format
-  auto conv_user = ngraph::as_type<ngraph::opset1::Convolution>(node->get_users()[0].get());
-  if (dims_reordered[0] == 1 && dims_reordered[1] == 1 && dims_reordered[3] == 1) {
+  if (dims[1] == 1000) {
+    dims_reordered[1] = 1;
     dims_reordered[2] = 1;
-    dims_reordered[3] = dims[1];
+  }
+  auto conv_user = ngraph::as_type<ngraph::opset1::Convolution>(node->get_users()[0].get());
+  if (conv_user) {
+    dims_reordered[0] = dims[2];
+    dims_reordered[1] = dims[3];
+    dims_reordered[2] = dims[1];
+    dims_reordered[3] = dims[0];
+  }
+  auto reduce_user = ngraph::as_type<ngraph::opset1::ReduceMean>(node->get_users()[0].get());
+  auto reshape_user = ngraph::as_type<ngraph::opset1::Reshape>(node->get_users()[0].get());
+  if (reduce_user || reshape_user) {
+    dims_reordered[0] = 1;
+    dims_reordered[1] = 1;
+    dims_reordered[2] = 1;
+    dims_reordered[3] = 2048;
+  }
+  auto matmul_user = ngraph::as_type<ngraph::opset1::MatMul>(node->get_users()[0].get());
+  if (matmul_user) {
+    dims_reordered[0] = dims[1];
+    dims_reordered[1] = dims[0];
+    dims_reordered[2] = 1;
+    dims_reordered[3] = 1;
   }
   auto reorder = plaidml::edsl::reshape(tensor, dims_reordered);
   tensorMap[std::make_pair(node->get_name() + "_reordered", 0)] = reorder;
