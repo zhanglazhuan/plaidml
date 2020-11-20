@@ -36,4 +36,9 @@ def PadConstraints : FunctionPass<"tile-pad-constraints"> {
   let constructor = "pmlc::dialect::tile::createPadConstraintsPass()";
 }
 
+def ReorderInputs : FunctionPass<"tile-reorder-inputs"> {
+  let summary = "Reorder Inputs";
+  let constructor = "pmlc::dialect::tile::createReorderInputsPass()";
+}
+
 #endif // __PMLC_DIALECT_TILE_PASSES__

@@ -47,6 +47,7 @@ namespace stdx = dialect::stdx;
 namespace tile = dialect::tile;
 
 void pipelineBuilder(OpPassManager &pm) {
+  pm.addPass(tile::createReorderInputsPass());
   // Bound + pad initial tile code
   pm.addPass(tile::createInlineLayersPass());
   pm.addPass(tile::createComputeBoundsPass());

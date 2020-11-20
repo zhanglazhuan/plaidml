@@ -3,6 +3,10 @@ FetchContent_Declare(
   URL      https://github.com/KhronosGroup/OpenCL-CLHPP/archive/v2.0.12.zip
   URL_HASH SHA256=127936b3a5ef147f23b85fb043599d1480e9e57acabe2d2a67c5dac05aa4ad70
 )
+set(opencl_hpp_headers_BUILD_DOCS OFF)
+set(opencl_hpp_headers_BUILD_EXAMPLES OFF)
+set(opencl_hpp_headers_BUILD_TESTS OFF)
+
 FetchContent_MakeAvailable(opencl_hpp_headers)
 
 add_library(opencl_hpp_headers INTERFACE)

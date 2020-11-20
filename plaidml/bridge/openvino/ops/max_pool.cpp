@@ -28,7 +28,7 @@ static OpRegistration reg("maxpool", [](const Context& ctx) {
     kernel.push_back(k);
   }
   auto pool_type = plaidml::op::PoolMode::MAX;
-  auto input_layout = plaidml::op::TensorLayout::NXC;
+  auto input_layout = plaidml::op::TensorLayout::NCX;
   auto autopad_mode = to_plaidml(layer->get_auto_pad());
   bool include_padding_in_avg = false;
   auto use_ceil_for_output_shape = layer->get_rounding_type() == ngraph::op::RoundingType::CEIL;
