@@ -211,9 +211,14 @@ void ProgramBuilder::handleOp(const std::shared_ptr<ngraph::Node>& node) {
     THROW_IE_EXCEPTION << "Unsupported operation: " << node->description();
   }
 
+  bool isInput = false;
   Context ctx{node.get()};
   for (const auto& input : node->inputs()) {
     const ngraph::Output<ngraph::Node>& src_output = input.get_source_output();
+    auto input_type = ngraph::as_type<ngraph::opset1::Parameter>(src_output.get_node());
+    // Mark inputs, only the first input is considered as this is the network's main flow
+    // Weights can also be passed via inputs but should not be considered here
+    if (input_type && input == *node->inputs().begin()) isInput = true;
     const std::string& name = src_output.get_node()->get_name();
     size_t index = src_output.get_index();
     plaidml::edsl::Tensor tensor = tensorMap.at(std::make_pair(name, index));
@@ -221,6 +226,10 @@ void ProgramBuilder::handleOp(const std::shared_ptr<ngraph::Node>& node) {
   }
   PlaidMLAttributeVisitor visitor;
   node->visit_attributes(visitor);
+  // TODO: Change the reorder_input attribute to specify layout, later on it
+  // should be handled in plaidml to compute appropriate reordering
+  // For now expected input format from OV is bfyx
+  if (isInput) visitor.attrs["reorder_input"] = plaidml::edsl::Value(isInput);
   plaidml::edsl::TensorVec tuple = plaidml::edsl::layer("ng." + node->description(), visitor.attrs, [&]() {
     plaidml::edsl::Value value = op(ctx);
     std::vector<plaidml::edsl::Value> tuple = value.as_tuple();

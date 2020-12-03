@@ -5,6 +5,7 @@
 #include "mlir/Support/DebugStringHelper.h"
 #include "llvm/ADT/SetVector.h"
 
+#include "pmlc/dialect/layer/ir/ops.h"
 #include "pmlc/dialect/tile/ir/ops.h"
 #include "pmlc/dialect/tile/transforms/pass_detail.h"
 #include "pmlc/util/logging.h"
@@ -60,7 +61,7 @@ int64_t getOperandArgNum(Operation &op, Value &operand) {
 
 void performDataReordering(OpBuilder &builder, Operation *op, BlockArgument arg,
                            bool isConst) {
-  auto layerOp = dyn_cast<LayerOp>(op);
+  auto layerOp = dyn_cast<layer::BoxOp>(op);
   if (!layerOp)
     return;
 
@@ -123,7 +124,7 @@ void performDataReordering(OpBuilder &builder, Operation *op, BlockArgument arg,
 }
 
 void performLayersReshape(OpBuilder &builder, Operation *op) {
-  auto layerOp = dyn_cast<LayerOp>(op);
+  auto layerOp = dyn_cast<layer::BoxOp>(op);
   if (!layerOp)
     return;
 
@@ -145,11 +146,11 @@ void performLayersReshape(OpBuilder &builder, Operation *op) {
   SmallVector<Value, 8> operands;
   for (auto &operand : layerOp.getOperands())
     operands.push_back(operand);
-  llvm::SetVector<Value> results;
+  SmallVector<Type, 8> resultTypes;
   for (auto &result : layerOp.getResults())
-    results.insert(result);
-  auto newLayerOp = builder.create<tile::LayerOp>(
-      layerOp.getLoc(), layerOp.op(), operands, results.getArrayRef(),
+    resultTypes.push_back(result.getType());
+  auto newLayerOp = builder.create<layer::BoxOp>(
+      layerOp.getLoc(), layerOp.op(), operands, resultTypes,
       builder.getDictionaryAttr(layerOp.getAttrs()));
   newLayerOp.getResult(0).setType(
       RankedTensorType::get(newSizesOutput, elementTypeLayer));
@@ -171,7 +172,7 @@ void performLayersReshape(OpBuilder &builder, Operation *op) {
     curArgNum++;
   }
 
-  auto layerReturnOp = dyn_cast<LayerReturnOp>(newLayerOps.back());
+  auto layerReturnOp = dyn_cast<layer::ReturnOp>(newLayerOps.back());
   if (!layerReturnOp)
     return;
   layerReturnOp.getOperand(0).setType(
@@ -273,7 +274,7 @@ void performLayersReshape(OpBuilder &builder, Operation *op) {
   toRemove.push_back(op);
 }
 
-void performReordering(LayerOp &LayerOp, FuncOp &func) {
+void performReordering(layer::BoxOp &LayerOp, FuncOp &func) {
   auto size = func.getArguments().size();
 
   OpBuilder builder(LayerOp.getOperation());
@@ -302,7 +303,7 @@ struct ReorderInputsPass : public ReorderInputsBase<ReorderInputsPass> {
     // TODO: this is bad design
     auto &block = func.getBody().front();
     Operation *op = &block.front();
-    auto layerOp = dyn_cast<LayerOp>(op);
+    auto layerOp = dyn_cast<layer::BoxOp>(op);
     if (!layerOp)
       return;
 
