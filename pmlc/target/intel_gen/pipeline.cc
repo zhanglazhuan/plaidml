@@ -114,6 +114,7 @@ struct ParallelLoopToGpuPass
     target.addLegalDialect<gpu::GPUDialect>();
     target.addLegalDialect<scf::SCFDialect>();
     target.addLegalOp<vector::InsertElementOp>();
+    target.addLegalOp<vector::ExtractElementOp>();
     target.addIllegalOp<scf::ParallelOp>();
     if (failed(applyPartialConversion(getOperation(), target, patterns)))
       signalPassFailure();
