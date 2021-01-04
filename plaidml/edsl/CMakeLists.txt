@@ -1,3 +1,4 @@
+add_subdirectory(examples)
 add_subdirectory(tests)
 
 set(_SRCS ffi.cc)
